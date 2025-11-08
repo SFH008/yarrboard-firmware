@@ -27,10 +27,13 @@ void relay_channels_setup()
   Wire.begin();
   Wire.setPins(YB_I2C_SDA_PIN, YB_I2C_SCL_PIN);
   Wire.setClock(YB_I2C_SPEED);
-  TCA.begin();
+  TCA.begin(INPUT);
 
-  // todo: connect and config driver
+  YBP.printf("Is Connected: %d\n", TCA.isConnected());
+  YBP.printf("Type: 0x%02x\n", TCA.getType());
+  YBP.printf("Address: 0x%02x\n", TCA.getAddress());
   #endif
+
   // intitialize our channel
   for (auto& ch : relay_channels) {
     ch.setup();
@@ -58,16 +61,8 @@ void RelayChannel::setup()
 
 void RelayChannel::setupDefaultState()
 {
-  // load our default status.
-  if (!strcmp(this->defaultState, "ON")) {
-    this->outputState = true;
-    this->status = Status::ON;
-  } else {
-    this->outputState = false;
-    this->status = Status::OFF;
-  }
-
   // update our pin
+  this->outputState = this->defaultState;
   this->updateOutput();
 }
 
@@ -82,13 +77,10 @@ void RelayChannel::updateOutput()
 
 void RelayChannel::setState(const char* state)
 {
-  if (!strcmp(state, "ON")) {
-    this->status = Status::ON;
+  if (!strcmp(state, "ON"))
     this->setState(true);
-  } else if (!strcmp(state, "OFF")) {
-    this->status = Status::OFF;
+  else if (!strcmp(state, "OFF"))
     this->setState(false);
-  }
 }
 
 void RelayChannel::setState(bool newState)
@@ -99,12 +91,6 @@ void RelayChannel::setState(bool newState)
 
     // keep track of how many toggles
     this->stateChangeCount++;
-
-    // what is our new status?
-    if (newState)
-      this->status = Status::ON;
-    else
-      this->status = Status::OFF;
   }
 
   // change our output pin to reflect
@@ -113,15 +99,12 @@ void RelayChannel::setState(bool newState)
 
 bool RelayChannel::getState()
 {
-  if (this->status == Status::ON)
-    return true;
-  else
-    return false;
+  return this->outputState;
 }
 
 const char* RelayChannel::getStatus()
 {
-  if (this->status == Status::ON)
+  if (this->outputState)
     return "ON";
   else
     return "OFF";
@@ -142,7 +125,7 @@ bool RelayChannel::loadConfig(JsonVariantConst config, char* error, size_t len)
     return false;
 
   strlcpy(this->type, config["type"] | "other", sizeof(this->type));
-  strlcpy(this->defaultState, config["defaultState"] | "OFF", sizeof(this->defaultState));
+  this->defaultState = config["defaultState"];
 
   return true;
 }

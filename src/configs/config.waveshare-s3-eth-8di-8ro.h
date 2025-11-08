@@ -4,11 +4,8 @@
 #define YB_HARDWARE_VERSION "ESP32-S3-ETH-8DI-8RO"
 #define YB_MANUFACTURER     "Waveshare"
 
-#define YB_DEFAULT_HOSTNAME "yarrboard"
-#define YB_DEFAULT_AP_SSID  "Yarrboard"
-
-#define YB_HAS_STATUS_WS2818
-#define YB_STATUS_WS2818_PIN 38
+#define YB_HAS_STATUS_RGB
+#define YB_STATUS_RGB_PIN 38
 
 #define YB_HAS_PIEZO
 #define YB_PIEZO_PASSIVE
@@ -19,7 +16,7 @@
 #define YB_RELAY_DRIVER_TCA9554_ADDRESS 0x20
 #define YB_I2C_SDA_PIN                  42
 #define YB_I2C_SCL_PIN                  41
-#define YB_I2C_SPEED                    400000
+#define YB_I2C_SPEED                    100000
 #define YB_RELAY_CHANNEL_COUNT          8
 #define YB_RELAY_CHANNEL_PINS           {0, 1, 2, 3, 4, 5, 6, 7}
 

@@ -9,7 +9,11 @@
 #include "networking.h"
 #include "debug.h"
 #include "prefs.h"
-#include "yb_server.h"
+#include "rgb.h"
+#include "setup.h"
+
+ImprovWiFi improvSerial(&Serial);
+ImprovWiFiBLE improvBLE;
 
 // for making a captive portal
 //  The default android DNS
@@ -25,35 +29,83 @@ char local_hostname[YB_HOSTNAME_LENGTH] = YB_DEFAULT_HOSTNAME;
 
 // identify yourself!
 char uuid[YB_UUID_LENGTH];
-bool is_first_boot = true;
 
 void network_setup()
 {
   uint64_t chipid = ESP.getEfuseMac(); // unique 48-bit MAC base ID
   snprintf(uuid, sizeof(uuid), "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
 
-  // get an IP address
   setupWifi();
+}
+
+void improv_setup()
+{
+  YBP.println("First Boot: starting Improv");
+
+  String device_url = "http://";
+  device_url.concat(local_hostname);
+  device_url.concat(".local");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  // Identify this device
+  improvSerial.setDeviceInfo(ImprovTypes::ChipFamily::CF_ESP32,
+    board_name,
+    YB_FIRMWARE_VERSION,
+    board_name,
+    device_url.c_str());
+
+  improvSerial.onImprovError(onImprovWiFiErrorCb);
+  improvSerial.onImprovConnected(onImprovWiFiConnectedCb);
+  improvSerial.setCustomConnectWiFi(connectToWifi);
+
+  // Identify this device
+  improvBLE.setDeviceInfo(ImprovTypes::ChipFamily::CF_ESP32,
+    board_name,
+    YB_FIRMWARE_VERSION,
+    board_name,
+    device_url.c_str());
+
+  improvBLE.onImprovError(onImprovWiFiErrorCb);
+  improvBLE.onImprovConnected(onImprovWiFiConnectedCb);
+  improvBLE.setCustomConnectWiFi(connectToWifi);
+}
+
+void onImprovWiFiErrorCb(ImprovTypes::Error err)
+{
+  YBP.printf("wifi error: %d\n", err);
+
+  rgb_set_status_color(CRGB::Red);
+}
+
+void onImprovWiFiConnectedCb(const char* ssid, const char* password)
+{
+  YBP.printf("Improv Successful: %s / %s\n", ssid, password);
+
+  strncpy(wifi_mode, "client", sizeof(wifi_mode));
+  strncpy(wifi_ssid, ssid, sizeof(wifi_ssid));
+  strncpy(wifi_pass, password, sizeof(wifi_pass));
+
+  char error[128];
+  saveConfig(error, sizeof(error));
+
+  full_setup();
+  is_first_boot = false;
 }
 
 void network_loop()
 {
-  // run our dns... for AP mode
-  if (!strcmp(wifi_mode, "ap"))
-    dnsServer.processNextRequest();
+}
+
+void improv_loop()
+{
+  if (is_first_boot)
+    improvSerial.handleSerial();
 }
 
 void setupWifi()
 {
-  // some global config
-  // WiFi.setSleep(false);
-  // WiFi.useStaticBuffers(true);  //from: https://github.com/espressif/arduino-esp32/issues/7183
-  WiFi.setHostname(local_hostname);
-
-  YBP.print("Hostname: ");
-  YBP.print(local_hostname);
-  YBP.println(".local");
-
   // which mode do we want?
   if (!strcmp(wifi_mode, "client")) {
     YBP.print("Client mode: ");
@@ -62,7 +114,8 @@ void setupWifi()
     YBP.println(wifi_pass);
 
     // try and connect
-    connectToWifi(wifi_ssid, wifi_pass);
+    if (connectToWifi(wifi_ssid, wifi_pass))
+      start_network_services();
   }
   // default to AP mode.
   else {
@@ -82,76 +135,74 @@ void setupWifi()
     // provided IP to all DNS request
     dnsServer.start(DNS_PORT, "*", apIP);
   }
-
-  // setup our local name.
-  if (!MDNS.begin(local_hostname)) {
-    YBP.println("Error starting mDNS");
-    return;
-  }
-  MDNS.addService("http", "tcp", 80);
 }
 
 bool connectToWifi(const char* ssid, const char* pass)
 {
-  YBP.print("[WiFi] Connecting to ");
-  YBP.println(ssid);
+  rgb_set_status_color(CRGB::Yellow);
 
+  // reset our wifi to a clean state
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_OFF);
+  delay(50);
+  WiFi.mode(WIFI_STA);
+
+  // some tuning
+  WiFi.persistent(false);
   WiFi.setAutoReconnect(true);
-  WiFi.begin(ssid, pass);
+  WiFi.setSleep(false); // optional but usually helps reliability
 
   // How long to try for?
-  int tryDelay = 500;
-  int numberOfTries = 60;
+  int tryDuration = 15000;
+  int tryDelay = 50;
+  int numberOfTries = tryDuration / tryDelay;
 
-  // Wait for the WiFi event
-  while (true) {
-    switch (WiFi.status()) {
-      case WL_NO_SSID_AVAIL:
-        YBP.println("[WiFi] SSID not found");
-        return false;
-        break;
-      case WL_CONNECT_FAILED:
-        YBP.print("[WiFi] Failed");
-        break;
-      case WL_CONNECTION_LOST:
-        YBP.println("[WiFi] Connection was lost");
-        break;
-      case WL_SCAN_COMPLETED:
-        YBP.println("[WiFi] Scan is completed");
-        break;
-      case WL_DISCONNECTED:
-        YBP.println("[WiFi] WiFi is disconnected");
-        break;
-      case WL_CONNECTED:
-        YBP.println("[WiFi] WiFi is connected!");
-        YBP.print("[WiFi] IP address: ");
-        YBP.println(WiFi.localIP());
+  YBP.print("[WiFi] Connecting to ");
+  YBP.println(ssid);
+  WiFi.begin(ssid, pass);
 
-        // #ifdef YB_HAS_STATUS_WS2818
-        //         status_led.setPixelColor(0, status_led.Color(0, 255, 0));
-        //         status_led.show();
-        // #endif
-
-        return true;
-        break;
-      default:
-        YBP.print("[WiFi] WiFi Status: ");
-        YBP.println(WiFi.status());
-        break;
+  // attempt to connect
+  while (numberOfTries > 0) {
+    if (WiFi.status() == WL_CONNECTED) {
+      YBP.println("\n[WiFi] WiFi is connected!");
+      YBP.print("[WiFi] IP address: ");
+      YBP.println(WiFi.localIP());
+      rgb_set_status_color(CRGB::Green);
+      return true;
     }
 
-    // have we hit our limit?
-    if (numberOfTries <= 0) {
-      // Use disconnect function to force stop trying to connect
-      WiFi.disconnect();
-      return false;
-    } else {
-      numberOfTries--;
+    if (WiFi.status() == WL_NO_SSID_AVAIL) {
+      YBP.println("[WiFi] SSID not found");
+      break;
     }
+
+    YBP.print(".");
+
+    numberOfTries--;
 
     delay(tryDelay);
+    yield();
   }
 
+  YBP.println("\n[WiFi] WiFi failed to connect");
+  WiFi.disconnect(true, true);
+  rgb_set_status_color(CRGB::Red);
+
   return false;
+}
+
+void start_network_services()
+{
+  // some global config
+  WiFi.setHostname(local_hostname);
+
+  YBP.print("Hostname: ");
+  YBP.print(local_hostname);
+  YBP.println(".local");
+
+  // setup our local name.
+  if (!MDNS.begin(local_hostname))
+    YBP.println("Error starting mDNS");
+  MDNS.addService("http", "tcp", 80);
 }

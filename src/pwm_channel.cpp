@@ -65,13 +65,13 @@ void pwm_channels_setup()
   _adcCurrentMCP3564.setConversionMode(MCP3x6x::conv_mode::ONESHOT_STANDBY);
   _adcCurrentMCP3564.setAveraging(MCP3x6x::osr::OSR_1024);
 
-  _adcCurrentMCP3564.printConfig();
+  // _adcCurrentMCP3564.printConfig();
 
-  YBP.print("VDD: ");
-  YBP.println(_adcCurrentMCP3564.analogRead(MCP_AVDD));
+  // YBP.print("VDD: ");
+  // YBP.println(_adcCurrentMCP3564.analogRead(MCP_AVDD));
 
-  YBP.print("TEMP: ");
-  YBP.println(_adcCurrentMCP3564.analogRead(MCP_TEMP));
+  // YBP.print("TEMP: ");
+  // YBP.println(_adcCurrentMCP3564.analogRead(MCP_TEMP));
 
   adcCurrentHelper = new MCP3564Helper(3.3, &_adcCurrentMCP3564, 50, 500);
   adcCurrentHelper->attachReadyPinInterrupt(YB_PWM_CHANNEL_CURRENT_ADC_IRQ, FALLING);
@@ -94,7 +94,6 @@ void pwm_channels_setup()
   _adcVoltageADS1115_1.setGain(1);
   _adcVoltageADS1115_1.setDataRate(4);
 
-  TRACE();
   adcVoltageHelper1 = new ADS1115Helper(4.096, &_adcVoltageADS1115_1, 50, 500);
 
   _adcVoltageADS1115_2.begin();
@@ -126,13 +125,13 @@ void pwm_channels_setup()
   _adcVoltageMCP3564.setConversionMode(MCP3x6x::conv_mode::ONESHOT_STANDBY);
   _adcVoltageMCP3564.setAveraging(MCP3x6x::osr::OSR_1024);
 
-  _adcVoltageMCP3564.printConfig();
+  // _adcVoltageMCP3564.printConfig();
 
-  YBP.print("VDD: ");
-  YBP.println(_adcVoltageMCP3564.analogRead(MCP_AVDD));
+  // YBP.print("VDD: ");
+  // YBP.println(_adcVoltageMCP3564.analogRead(MCP_AVDD));
 
-  YBP.print("TEMP: ");
-  YBP.println(_adcVoltageMCP3564.analogRead(MCP_TEMP));
+  // YBP.print("TEMP: ");
+  // YBP.println(_adcVoltageMCP3564.analogRead(MCP_TEMP));
 
   adcVoltageHelper = new MCP3564Helper(3.3, &_adcVoltageMCP3564);
 
@@ -294,23 +293,19 @@ void PWMChannel::setup()
 
 void PWMChannel::setupLedc()
 {
-  #ifdef YB_PWM_CHANNEL_INVERTED
-  this->isInverted = true;
-  #else
-  this->isInverted = false;
-  #endif
 
   // track our fades
   this->isFading = false;
   this->fadeOver = false;
 
-  // initialize our PWM channels
-  pinMode(this->pin, OUTPUT);
-  digitalWrite(this->pin, this->isInverted);
-
   // now attach ledc
   if (!ledcAttach(this->pin, YB_PWM_CHANNEL_FREQUENCY, YB_PWM_CHANNEL_RESOLUTION))
     YBP.printf("PWM CH%d error attaching to LEDC\n");
+
+  #ifdef YB_PWM_CHANNEL_INVERTED
+  ledcOutputInvert(this->pin, true);
+  #endif
+
   this->writePWM(0);
 }
 
@@ -346,7 +341,7 @@ void PWMChannel::setupOffset()
   if (a < (YB_PWM_CHANNEL_MAX_AMPS * 0.05))
     this->amperageOffset = a;
 
-  YBP.printf("CH%d Voltage Offset: %0.3f / Amperage Offset: %0.3f\n", this->id, this->voltageOffset, this->amperageOffset);
+  // YBP.printf("CH%d Voltage Offset: %0.3f / Amperage Offset: %0.3f\n", this->id, this->voltageOffset, this->amperageOffset);
 }
 
 void PWMChannel::setupDefaultState()
@@ -463,6 +458,14 @@ float PWMChannel::getAmperage()
   return this->toAmperage(this->amperageHelper->getAverageVoltage(this->_adcAmperageChannel));
 }
 
+float PWMChannel::getWattage()
+{
+  if (this->dutyCycle == 1.0)
+    return this->getVoltage() * this->getAmperage();
+  else
+    return getBusVoltage() * this->getAmperage();
+}
+
 float PWMChannel::toVoltage(float adcVoltage)
 {
   float v = adcVoltage / (YB_PWM_CHANNEL_VOLTAGE_R2 / (YB_PWM_CHANNEL_VOLTAGE_R2 + YB_PWM_CHANNEL_VOLTAGE_R1));
@@ -483,19 +486,19 @@ void PWMChannel::checkStatus()
 
 void PWMChannel::updateOutputLED()
 {
-  #if (YB_STATUS_WS2818_COUNT > 1)
+  #if (YB_STATUS_RGB_COUNT > 1)
   if (this->status == Status::ON)
-    rgb_set_pixel_color(this->id, 0, 255, 0); // green
+    rgb_set_pixel_color(this->id, CRGB::Green);
   else if (this->status == Status::OFF)
-    rgb_set_pixel_color(this->id, 0, 0, 0); // off
+    rgb_set_pixel_color(this->id, CRGB::Black);
   else if (this->status == Status::TRIPPED)
-    rgb_set_pixel_color(this->id, 255, 255, 0); // yellow
+    rgb_set_pixel_color(this->id, CRGB::Yellow);
   else if (this->status == Status::BLOWN)
-    rgb_set_pixel_color(this->id, 255, 0, 0); // red
+    rgb_set_pixel_color(this->id, CRGB::Red);
   else if (this->status == Status::BYPASSED)
-    rgb_set_pixel_color(this->id, 0, 0, 255); // blue
+    rgb_set_pixel_color(this->id, CRGB::Blue);
   else
-    rgb_set_pixel_color(this->id, 0, 0, 0); // off
+    rgb_set_pixel_color(this->id, CRGB::Black);
   #endif
 }
 
@@ -513,13 +516,26 @@ void PWMChannel::checkFuseBlown()
   else
     duty = 1.0;
 
-  float busVoltage = getBusVoltage();
-  float minVoltage = busVoltage * duty * 0.3;
+  // we cant really detect much at low levels
+  if (duty < 0.1)
+    return;
 
-  // dimming lights are a special case...
+  // determine what our floor for a tripped fuse should be.
+  float busVoltage = getBusVoltage();
+  float minVoltage = busVoltage * duty * 0.1;
+
+  // so hard to measure that low accurately over time and not false
+  if (minVoltage <= 0.05)
+    return;
+
+  // dimming lights need more time.
   unsigned long firstCheckTime = 1000;
   if (isDimmable && !strcmp(this->type, "light"))
     firstCheckTime += rampOnMillis;
+
+  // fades are also really hard to measure.
+  if (this->isFading)
+    return;
 
   // we need bus voltage for our calculations.
   // it takes a little bit to populate on boot.
@@ -532,12 +548,7 @@ void PWMChannel::checkFuseBlown()
         if (this->getVoltage() >= minVoltage)
           return;
 
-        DUMP(this->id);
-        DUMP(voltageHelper->getReadingCount(_adcVoltageChannel));
-        DUMP(this->getVoltage());
-        DUMP(duty);
-        DUMP(busVoltage);
-        DUMP(minVoltage);
+        YBP.printf("CH%d BLOWN: %.3f < %.3f\n", this->id, this->getVoltage(), minVoltage);
 
         this->status = Status::BLOWN;
         this->outputState = false;
@@ -611,11 +622,7 @@ void PWMChannel::startFade(float duty, int fade_time)
     // setup for our hardware fader
     fade_time = max(1, fade_time);
     const uint32_t start_duty = ledcRead(this->pin); // start from where you are
-    uint32_t end_duty;
-    if (this->isInverted)
-      end_duty = MAX_DUTY_CYCLE - (duty * MAX_DUTY_CYCLE); // inverted
-    else
-      end_duty = (duty * MAX_DUTY_CYCLE); // regular
+    uint32_t end_duty = (duty * MAX_DUTY_CYCLE);     // end at desired duty
 
     // nothing happening.
     if (start_duty == end_duty)
@@ -667,6 +674,7 @@ bool PWMChannel::gammaFadeWithInterrupt(
   gamma.user_cb = final_cb;
   gamma.user_arg = final_arg;
   gamma.active = true;
+  gamma.owner = this;
 
   // even timing; remainder to last segment
   gamma.step_ms = (SEGMENTS > 1) ? (total_ms / SEGMENTS) : total_ms;
@@ -703,6 +711,42 @@ bool PWMChannel::gammaFadeWithInterrupt(
     &gamma);
 }
 
+void ARDUINO_ISR_ATTR PWMChannel::gammaISR(void* arg)
+{
+  auto* S = static_cast<PWMChannel::GammaState*>(arg);
+  if (!S || !S->active)
+    return;
+
+  BaseType_t hpw = pdFALSE;
+  xTimerPendFunctionCallFromISR(&PWMChannel::continueGammaThunk, arg, 0, &hpw);
+  if (hpw)
+    portYIELD_FROM_ISR();
+}
+
+void PWMChannel::continueGammaThunk(void* arg, uint32_t)
+{
+  auto* S = static_cast<GammaState*>(arg);
+  if (!S || !S->active)
+    return;
+
+  constexpr uint8_t SEGMENTS = 16;
+
+  if (S->idx + 1 < SEGMENTS) {
+    const uint32_t from = S->targets[S->idx];
+    const uint32_t to = S->targets[S->idx + 1];
+    const bool lastSeg = (S->idx + 1 == SEGMENTS - 1);
+    const int dur_ms = lastSeg ? S->last_ms : S->step_ms;
+    S->idx++;
+
+    // SAFE here (task context):
+    ledcFadeWithInterruptArg(S->pin, from, to, dur_ms, &PWMChannel::gammaISR, S);
+  } else {
+    S->active = false;
+    if (S->user_cb)
+      S->user_cb(S->user_arg); // also safe here if you prefer
+  }
+}
+
 void PWMChannel::checkIfFadeOver()
 {
   // has our fade ended?
@@ -726,7 +770,7 @@ void PWMChannel::setDuty(float duty)
         sprintf(prefIndex, "pwmDuty%d", this->id);
         preferences.putFloat(prefIndex, duty);
         this->dutyCycleIsThrottled = false;
-        YBP.printf("saving %s: %f\n", prefIndex, this->dutyCycle);
+        // YBP.printf("saving %s: %f\n", prefIndex, this->dutyCycle);
 
         this->lastDutyCycle = this->dutyCycle;
       }
@@ -746,12 +790,7 @@ void PWMChannel::calculateAverages(unsigned int delta)
   // record our total consumption
   if (this->getAmperage() > 0) {
     this->ampHours += this->getAmperage() * ((float)delta / 3600000.0);
-
-    // only use our voltage if we're not pwming.
-    if (this->getVoltage() && this->dutyCycle == 1.0)
-      this->wattHours += this->getAmperage() * this->getVoltage() * ((float)delta / 3600000.0);
-    else
-      this->wattHours += this->getAmperage() * getBusVoltage() * ((float)delta / 3600000.0);
+    this->wattHours += this->getWattage() * ((float)delta / 3600000.0);
   }
 }
 
@@ -811,11 +850,7 @@ void PWMChannel::setState(bool newState)
 void PWMChannel::writePWM(uint16_t pwm)
 {
   pwm = constrain(pwm, 0, MAX_DUTY_CYCLE);
-
-  if (this->isInverted)
-    ledcWrite(this->pin, MAX_DUTY_CYCLE - pwm);
-  else
-    ledcWrite(this->pin, pwm);
+  ledcWrite(this->pin, pwm);
 }
 
 const char* PWMChannel::getStatus()
@@ -1006,9 +1041,10 @@ bool PWMChannel::loadConfig(JsonVariantConst config, char* error, size_t len)
 
   isDimmable = config["isDimmable"] | true;
 
-  softFuseAmperage = config["softFuse"] | YB_PWM_CHANNEL_MAX_AMPS;
-  softFuseAmperage = max(0.0f, softFuseAmperage);
-  softFuseAmperage = min((float)YB_PWM_CHANNEL_MAX_AMPS, softFuseAmperage);
+  if (config["softFuse"]) {
+    softFuseAmperage = config["softFuse"];
+    softFuseAmperage = constrain(softFuseAmperage, 0, YB_PWM_CHANNEL_MAX_AMPS);
+  }
 
   strlcpy(this->type, config["type"] | "other", sizeof(this->type));
   strlcpy(this->defaultState, config["defaultState"] | "OFF", sizeof(this->defaultState));
@@ -1037,6 +1073,7 @@ void PWMChannel::generateUpdate(JsonVariant config)
     config["duty"] = round2(this->dutyCycle);
   config["voltage"] = round2(this->getVoltage());
   config["current"] = round2(this->getAmperage());
+  config["wattage"] = round2(this->getWattage());
   config["aH"] = round3(this->ampHours);
   config["wH"] = round3(this->wattHours);
 }

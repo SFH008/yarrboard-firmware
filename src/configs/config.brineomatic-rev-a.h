@@ -4,10 +4,9 @@
 #define YB_HARDWARE_VERSION "BRINEOMATIC_REV_A"
 #define YB_MANUFACTURER     "Yarrboard"
 
-#define YB_IS_BRINEOMATIC 1
-
+#define YB_IS_BRINEOMATIC   1
+#define YB_BOARD_NAME       "Brineomatic"
 #define YB_DEFAULT_HOSTNAME "brineomatic"
-#define YB_DEFAULT_AP_SSID  "Brineomatic"
 
 #define YB_BOM_DATA_SIZE     300
 #define YB_BOM_DATA_INTERVAL 5000000
@@ -15,9 +14,8 @@
 #define YB_BOM_PID_OUTPUT_MIN -255
 #define YB_BOM_PID_OUTPUT_MAX 255
 
-#define YB_HAS_STATUS_WS2818
-#define YB_STATUS_WS2818_PIN  38
-#define YB_STATUS_WS2818_TYPE NEO_RGB
+#define YB_HAS_STATUS_RGB
+#define YB_STATUS_RGB_PIN 38
 
 #define YB_HAS_RELAY_CHANNELS
 #define YB_RELAY_CHANNEL_COUNT 4

@@ -39,6 +39,8 @@ String arduino_version = String(ESP_ARDUINO_VERSION_MAJOR) + "." +
 
 Preferences preferences;
 
+bool is_first_boot = true;
+
 bool prefs_setup()
 {
   if (preferences.begin("yarrboard", false)) {
@@ -221,7 +223,15 @@ void generateBoardConfigJSON(JsonVariant output)
   }
 #endif
 
-// input / analog ADC channesl
+#ifdef YB_HAS_STEPPER_CHANNELS
+  JsonArray st_channels = output["stepper"].to<JsonArray>();
+  for (auto& ch : stepper_channels) {
+    JsonObject jo = st_channels.add<JsonObject>();
+    ch.generateConfig(jo);
+  }
+#endif
+
+// input / analog ADC channels
 #ifdef YB_HAS_ADC_CHANNELS
   output["adc_resolution"] = YB_ADC_RESOLUTION;
   JsonArray channels = output["adc"].to<JsonArray>();
@@ -454,7 +464,7 @@ bool loadBoardConfigFromJSON(JsonVariantConst config, char* error, size_t len)
   const char* value;
 
   value = config["name"].as<const char*>();
-  snprintf(board_name, sizeof(board_name), "%s", (value && *value) ? value : "Yarrboard");
+  snprintf(board_name, sizeof(board_name), "%s", (value && *value) ? value : YB_BOARD_NAME);
 
 #ifdef YB_HAS_ADC_CHANNELS
   if (!loadChannelsConfigFromJSON("adc", adc_channels, config, error, len))
@@ -478,6 +488,11 @@ bool loadBoardConfigFromJSON(JsonVariantConst config, char* error, size_t len)
 
 #ifdef YB_HAS_SERVO_CHANNELS
   if (!loadChannelsConfigFromJSON("servo", servo_channels, config, error, len))
+    return false;
+#endif
+
+#ifdef YB_HAS_STEPPER_CHANNELS
+  if (!loadChannelsConfigFromJSON("stepper", stepper_channels, config, error, len))
     return false;
 #endif
 

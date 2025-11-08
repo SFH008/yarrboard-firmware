@@ -7,33 +7,45 @@
     <title>Yarrboard</title>
     <!-- Icon source: https://icon-icons.com -->
     <!-- shortcut::favicon.png -->
-    <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="spectrum.min.css">
+    <link rel="stylesheet" type="text/css" href="libs/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="libs/spectrum.min.css">
+    <link rel="stylesheet" type="text/css" href="libs/c3.min.css">
     <link rel="stylesheet" type="text/css" href="style.css">
-    <link href="c3.min.css" rel="stylesheet">
 
-    <script src="yarrboard-client.js"></script>
-    <script src="jquery-3.7.0.min.js"></script>
-    <script src="bootstrap.min.js"></script>
-    <script src="jscookie.js"></script>
-    <script src="spectrum.min.js"></script>
-    <script src="marked.min.js"></script>
-    <script src="d3.min.js"></script>
-    <script src="c3.min.js"></script>
-    <script src="yarrboard.js"></script>
+    <script src="libs/yarrboard-client.js"></script>
+    <script src="libs/jquery-3.7.0.min.js"></script>
+    <script src="libs/bootstrap.min.js"></script>
+    <script src="libs/jscookie.js"></script>
+    <script src="libs/spectrum.min.js"></script>
+    <script src="libs/marked.min.js"></script>
+    <script src="libs/d3.min.js"></script>
+    <script src="libs/c3.min.js"></script>
+    <script src="libs/validate.min.js"></script>
+
+    <script src="js/Log.js"></script>
+    <script src="js/Util.js"></script>
+    <script src="js/App.js"></script>
+    <script src="js/Brineomatic.js"></script>
+    <script src="js/ChannelRegistry.js"></script>
+    <script src="js/channels/BaseChannel.js"></script>
+    <!-- <script src="js/channels/ADCChannel.js"></script> -->
+    <!-- <script src="js/channels/DigitalInputChannel.js"></script> -->
+    <script src="js/channels/PWMChannel.js"></script>
+    <script src="js/channels/RelayChannel.js"></script>
+    <script src="js/channels/ServoChannel.js"></script>
+    <script src="js/channels/StepperChannel.js"></script>
 </head>
 
 <body>
     <script>
-        $(document).ready(start_yarrboard);
-        let FF_FOUC_FIX;
+        $(document).ready(YB.App.start);
     </script>
     <div class="col-xl-8 col-lg-10 mx-auto">
         <nav id="navbar"
             class="navbar sticky-top navbar-expand-md bg-body-tertiary navbar-light bg-light rounded-bottom"
             style="display: none">
             <div class="container-fluid">
-                <a class="navbar-brand" onclick="open_page('control')" href="#control">
+                <a class="navbar-brand" onclick="YB.App.openPage('control')" href="#control">
                     <img class="logo align-top me-3" src="logo-72.png" alt="Avast ye scurvy dog." width="30"
                         height="30">
                     <span id="boardName">Yarrboard</span>
@@ -45,32 +57,29 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav align-items-center">
                         <li id="controlNav" class="nav-item nav-permission">
-                            <a class="nav-link active" onclick="open_page('control')" aria-current="page"
+                            <a class="nav-link active" onclick="YB.App.openPage('control')" aria-current="page"
                                 href="#control">Control</a>
                         </li>
                         <li id="statsNav" class="nav-item nav-permission">
-                            <a class="nav-link" onclick="open_page('stats')" href="#stats">Status</a>
+                            <a class="nav-link" onclick="YB.App.openPage('stats')" href="#stats">Status</a>
                         </li>
-                        <li id="graphsNav" class="nav-item nav-permission mfdHide" style="display: none">
-                            <a class="nav-link" onclick="open_page('graphs')" href="#graphs">Graphs</a>
-                        </li>
+                        <!-- <li id="graphsNav" class="nav-item nav-permission mfdHide" style="display: none">
+                            <a class="nav-link" onclick="YB.App.openPage('graphs')" href="#graphs">Graphs</a>
+                        </li> -->
                         <li id="configNav" class="nav-item nav-permission">
-                            <a class="nav-link" onclick="open_page('config')" href="#config">Config</a>
+                            <a class="nav-link" onclick="YB.App.openPage('config')" href="#config">Config</a>
                         </li>
                         <li id="settingsNav" class="nav-item nav-permission">
-                            <a class="nav-link" onclick="open_page('settings')" href="#settings">Settings</a>
-                        </li>
-                        <li id="networkNav" class="nav-item nav-permission">
-                            <a class="nav-link" onclick="open_page('network')" href="#network">Network</a>
+                            <a class="nav-link" onclick="YB.App.openPage('settings')" href="#settings">Settings</a>
                         </li>
                         <li id="systemNav" class="nav-item nav-permission">
-                            <a class="nav-link" onclick="open_page('system')" href="#system">System</a>
+                            <a class="nav-link" onclick="YB.App.openPage('system')" href="#system">System</a>
                         </li>
                         <li id="loginNav" class="nav-item" style="display: none">
-                            <a class="nav-link" onclick="open_page('login')" href="#login">Login</a>
+                            <a class="nav-link" onclick="YB.App.openPage('login')" href="#login">Login</a>
                         </li>
                         <li id="logoutNav" class="nav-item" style="display: none">
-                            <a class="nav-link" onclick="open_page('logout')" href="#logout">Logout</a>
+                            <a class="nav-link" onclick="YB.App.openPage('logout')" href="#logout">Logout</a>
                         </li>
                     </ul>
                 </div>
@@ -95,570 +104,6 @@
             <div class="mx-3 mt-3">
                 <div id="liveAlertPlaceholder"></div>
                 <div id="controlPage" class="pageContainer row" style="display:none">
-                    <div id="bomInterface" class="row mx-0" style="visibility:hidden">
-                        <div id="bomInformationDiv" style="display:none" class="col-md-6">
-                            <h1 class="text-center">Mode: <span class="badge" id="bomStatus"></span></h1>
-                            <table id="bomTable" class="table table-hover">
-                                <tbody id="bomTableBody">
-                                    <tr id="bomRunResultRow" class="bomIDLE bomFLUSHING" style="display: none">
-                                        <th>Last Run Result</th>
-                                        <td><span id="bomRunResult"></span></td>
-                                    </tr>
-                                    <tr id="bomFlushResultRow" class="bomIDLE" style="display: none">
-                                        <th>Flush Result</th>
-                                        <td><span id="bomFlushResult"></span></td>
-                                    </tr>
-                                    <tr id="bomPickleResultRow" class="bomPICKLED" style="display: none">
-                                        <th>Pickle Result</th>
-                                        <td><span id="bomPickleResult"></span></td>
-                                    </tr>
-                                    <tr id="bomDePickleResultRow" class="bomIDLE" style="display: none">
-                                        <th>Depickle Result</th>
-                                        <td><span id="bomDePickleResult"></span></td>
-                                    </tr>
-                                    <tr id="bomNextFlushCountdown" class="bomIDLE" style="display: none">
-                                        <th>Next Autoflush</th>
-                                        <td id="bomNextFlushCountdownData"></td>
-                                    </tr>
-                                    <tr id="bomRuntimeElapsed" class="bomIDLE bomRUNNING bomFLUSHING"
-                                        style="display: none">
-                                        <th>Runtime Elapsed</th>
-                                        <td id="bomRuntimeElapsedData"></td>
-                                    </tr>
-                                    <tr id="bomFinishCountdown" class="bomRUNNING" style="display: none">
-                                        <th>Runtime Remaining</th>
-                                        <td id="bomFinishCountdownData"></td>
-                                    </tr>
-                                    <tr id="bomRunProgressRow" class="bomRUNNING" style="display: none">
-                                        <td colspan="2">
-                                            <div id="bomRunProgressBar" class="progress" role="progressbar"
-                                                aria-label="Run Progress" aria-valuenow="0" aria-valuemin="0"
-                                                aria-valuemax="100">
-                                                <div class="progress-bar"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr id="bomFlushElapsed" class="bomIDLE bomFLUSHING" style="display: none">
-                                        <th>Flush Elapsed</th>
-                                        <td id="bomFlushElapsedData"></td>
-                                    </tr>
-                                    <tr id="bomFlushCountdown" class="bomIDLE bomFLUSHING" style="display: none">
-                                        <th>Flush Remaining</th>
-                                        <td id="bomFlushCountdownData"></td>
-                                    </tr>
-                                    <tr id="bomFlushProgressRow" class="bomFLUSHING" style="display: none">
-                                        <td colspan="2">
-                                            <div id="bomFlushProgressBar" class="progress" role="progressbar"
-                                                aria-label="Basic example" aria-valuenow="0" aria-valuemin="0"
-                                                aria-valuemax="100">
-                                                <div class="progress-bar"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr id="bomPickleElapsed" class="bomPICKLING" style="display: none">
-                                        <th>Pickling Elapsed</th>
-                                        <td id="bomPickleElapsedData"></td>
-                                    </tr>
-                                    <tr id="bomPickleCountdown" class="bomPICKLING" style="display: none">
-                                        <th>Pickling Remaining</th>
-                                        <td id="bomPickleCountdownData"></td>
-                                    </tr>
-                                    <tr id="bomPickleProgressRow" class="bomPICKLING" style="display: none">
-                                        <td colspan="2">
-                                            <div id="bomPickleProgressBar" class="progress" role="progressbar"
-                                                aria-label="Basic example" aria-valuenow="0" aria-valuemin="0"
-                                                aria-valuemax="100">
-                                                <div class="progress-bar"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr id="bomDepickleElapsed" class="bomDEPICKLING" style="display: none">
-                                        <th>De-Pickling Elapsed</th>
-                                        <td id="bomDepickleElapsedData"></td>
-                                    </tr>
-                                    <tr id="bomDepickleCountdown" class="bomDEPICKLING" style="display: none">
-                                        <th>De-Pickling Remaining</th>
-                                        <td id="bomDepickleCountdownData"></td>
-                                    </tr>
-                                    <tr id="bomDepickleProgressRow" class="bomDEPICKLING" style="display: none">
-                                        <td colspan="2">
-                                            <div id="bomDepickleProgressBar" class="progress" role="progressbar"
-                                                aria-label="Basic example" aria-valuenow="0" aria-valuemin="0"
-                                                aria-valuemax="100">
-                                                <div class="progress-bar"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <!-- <tr id="bomVolume" class="bomIDLE bomMANUAL bomRUNNING bomFLUSHING">
-                                        <th>Volume Produced</th>
-                                        <td id="bomVolumeData"></td>
-                                    </tr> -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div id="bomControlDiv" style="display:none" class="col-md-6">
-                            <div id="bomControlButtons" class="row g-2 justify-content-center">
-                                <div id="runBrineomatic" class="col-6 bomIDLE">
-                                    <button class="btn btn-success brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#startBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-play-circle" viewBox="0 0 16 16">
-                                            <path
-                                                d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                                            <path
-                                                d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445" />
-                                        </svg>
-                                        <span class="align-middle mx-2">START</span>
-                                    </button>
-                                </div>
-                                <div id="flushBrineomatic" class="col-6 bomIDLE bomPICKLED">
-                                    <button class="btn btn-primary brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#flushBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-droplet" viewBox="0 0 16 16">
-                                            <path fill-rule="evenodd"
-                                                d="M7.21.8C7.69.295 8 0 8 0q.164.544.371 1.038c.812 1.946 2.073 3.35 3.197 4.6C12.878 7.096 14 8.345 14 10a6 6 0 0 1-12 0C2 6.668 5.58 2.517 7.21.8m.413 1.021A31 31 0 0 0 5.794 3.99c-.726.95-1.436 2.008-1.96 3.07C3.304 8.133 3 9.138 3 10a5 5 0 0 0 10 0c0-1.201-.796-2.157-2.181-3.7l-.03-.032C9.75 5.11 8.5 3.72 7.623 1.82z" />
-                                            <path fill-rule="evenodd"
-                                                d="M4.553 7.776c.82-1.641 1.717-2.753 2.093-3.13l.708.708c-.29.29-1.128 1.311-1.907 2.87z" />
-                                        </svg>
-                                        <span class="align-middle mx-2">FLUSH</span>
-                                    </button>
-                                </div>
-                                <div id="pickleBrineomatic" class="col-6 bomIDLE">
-                                    <button class="btn btn-warning brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#pickleBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-shield-plus" viewBox="0 0 16 16">
-                                            <path
-                                                d="M5.338 1.59a61 61 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.7 10.7 0 0 0 2.287 2.233c.346.244.652.42.893.533q.18.085.293.118a1 1 0 0 0 .101.025 1 1 0 0 0 .1-.025q.114-.034.294-.118c.24-.113.547-.29.893-.533a10.7 10.7 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.8 11.8 0 0 1-2.517 2.453 7 7 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7 7 0 0 1-1.048-.625 11.8 11.8 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 63 63 0 0 1 5.072.56" />
-                                            <path
-                                                d="M8 4.5a.5.5 0 0 1 .5.5v1.5H10a.5.5 0 0 1 0 1H8.5V9a.5.5 0 0 1-1 0V7.5H6a.5.5 0 0 1 0-1h1.5V5a.5.5 0 0 1 .5-.5" />
-                                        </svg>
-                                        <span class="align-middle mx-2">PICKLE</span>
-                                    </button>
-                                </div>
-                                <div id="depickleBrineomatic" class="col-6 bomPICKLED">
-                                    <button class="btn btn-warning brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#depickleBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-shield-slash" viewBox="0 0 16 16">
-                                            <path fill-rule="evenodd"
-                                                d="M1.093 3.093c-.465 4.275.885 7.46 2.513 9.589a11.8 11.8 0 0 0 2.517 2.453c.386.273.744.482 1.048.625.28.132.581.24.829.24s.548-.108.829-.24a7 7 0 0 0 1.048-.625 11.3 11.3 0 0 0 1.733-1.525l-.745-.745a10.3 10.3 0 0 1-1.578 1.392c-.346.244-.652.42-.893.533q-.18.085-.293.118a1 1 0 0 1-.101.025 1 1 0 0 1-.1-.025 2 2 0 0 1-.294-.118 6 6 0 0 1-.893-.533 10.7 10.7 0 0 1-2.287-2.233C3.053 10.228 1.879 7.594 2.06 4.06zM3.98 1.98l-.852-.852A59 59 0 0 1 5.072.559C6.157.266 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.483 3.626-.332 6.491-1.551 8.616l-.77-.77c1.042-1.915 1.72-4.469 1.29-7.702a.48.48 0 0 0-.33-.39c-.65-.213-1.75-.56-2.836-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524a50 50 0 0 0-1.357.39zm9.666 12.374-13-13 .708-.708 13 13z" />
-                                        </svg>
-                                        <span class="align-middle mx-2">DEPICKLE</span>
-                                    </button>
-                                </div>
-                                <div id="stopBrineomatic"
-                                    class="col-6 bomRUNNING bomFLUSHING bomPICKLING bomDEPICKLING">
-                                    <button class="btn btn-danger brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#stopBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-stop-circle" viewBox="0 0 16 16">
-                                            <path
-                                                d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                                            <path
-                                                d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5z" />
-                                        </svg>
-                                        <span class="align-middle mx-2">STOP</span>
-                                    </button>
-                                </div>
-                                <div id="manualBrineomatic" class="col-6 bomIDLE">
-                                    <button class="btn btn-secondary brineomaticControlButton" type="button"
-                                        data-bs-toggle="modal" data-bs-target="#manualBrineomaticModal">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-wrench-adjustable-circle"
-                                            viewBox="0 0 16 16">
-                                            <path
-                                                d="M12.496 8a4.5 4.5 0 0 1-1.703 3.526L9.497 8.5l2.959-1.11q.04.3.04.61" />
-                                            <path
-                                                d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-1 0a7 7 0 1 0-13.202 3.249l1.988-1.657a4.5 4.5 0 0 1 7.537-4.623L7.497 6.5l1 2.5 1.333 3.11c-.56.251-1.18.39-1.833.39a4.5 4.5 0 0 1-1.592-.29L4.747 14.2A7 7 0 0 0 15 8m-8.295.139a.25.25 0 0 0-.288-.376l-1.5.5.159.474.808-.27-.595.894a.25.25 0 0 0 .287.376l.808-.27-.595.894a.25.25 0 0 0 .287.376l1.5-.5-.159-.474-.808.27.596-.894a.25.25 0 0 0-.288-.376l-.808.27z" />
-                                        </svg>
-                                        <span class="align-middle mx-2">MANUAL</span>
-                                    </button>
-                                </div>
-                                <div id="idleBrineomatic" class="col-6 bomMANUAL">
-                                    <button class="btn btn-primary brineomaticControlButton" type="button"
-                                        onclick="idle_brineomatic()">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
-                                            fill="currentColor" class="bi bi-arrow-counterclockwise"
-                                            viewBox="0 0 16 16">
-                                            <path fill-rule="evenodd"
-                                                d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
-                                            <path
-                                                d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
-                                        </svg>
-                                        <span class="align-middle mx-2">BACK</span>
-                                    </button>
-                                </div>
-                                <div id="statusBrineomatic"
-                                    class="col-12 bomRUNNING bomFLUSHING bomPICKLING bomDEPICKLING bomSTOPPING">
-                                    <table id="bomStatusTable" class="table table-hover">
-                                        <tbody id="bomStatusTableBody">
-                                            <tr id="bomBoostPumpStatus">
-                                                <th>Boost Pump:</th>
-                                                <td><span></span></td>
-                                            </tr>
-                                            <tr id="bomHighPressurePumpStatus">
-                                                <th>High Pressure Pump:</th>
-                                                <td><span></span></td>
-                                            </tr>
-                                            <tr id="bomDiverterValveStatus">
-                                                <th>Diverter Valve:</th>
-                                                <td><span></span></td>
-                                            </tr>
-                                            <tr id="bomFanStatus">
-                                                <th>Cooling Fan:</th>
-                                                <td><span></span></td>
-                                            </tr>
-                                            <tr id="bomFlushValveStatus">
-                                                <th>Flush Valve:</th>
-                                                <td><span></span></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="startBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="startBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="startBrineomaticModalTitle">Start
-                                                Watermaker -
-                                                Choose Mode
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="container-fluid">
-                                                <div class="row">
-                                                    <div class="col-md-4">
-                                                        <h5>Automatic</h5>
-                                                        <div class="small" style="height: 110px">
-                                                            Run until full.
-                                                        </div>
-                                                        <button type="button" class="btn btn-success my-3"
-                                                            data-bs-dismiss="modal" style="width: 100%"
-                                                            onclick="start_brineomatic_manual()">Start</button>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <h5>Duration</h5>
-                                                        <div class="small" style="height: 70px">
-                                                            Run for the time below.
-                                                        </div>
-                                                        <div style="height: 40px">
-                                                            <div class="input-group">
-                                                                <input type="text" class="form-control"
-                                                                    id="bomRunDurationInput" value="3.5">
-                                                                <span class="input-group-text">hours</span>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-success my-3"
-                                                            data-bs-dismiss="modal" style="width: 100%"
-                                                            onclick="start_brineomatic_duration()">Start</button>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <h5>Volume</h5>
-                                                        <div class="small" style="height: 70px">
-                                                            Make the amount of water below.
-                                                        </div>
-                                                        <div style="height: 40px">
-                                                            <div class="input-group">
-                                                                <input type="text" class="form-control"
-                                                                    id="bomRunVolumeInput" value="250">
-                                                                <span class="input-group-text">liters</span>
-                                                            </div>
-                                                        </div>
-                                                        <button type="button" class="btn btn-success my-3"
-                                                            data-bs-dismiss="modal" style="width: 100%"
-                                                            onclick="start_brineomatic_volume()">Start</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary"
-                                                    data-bs-dismiss="modal">Cancel</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="flushBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="flushBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="flushBrineomaticModalTitle">Flush
-                                                Watermaker
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p>Flush the watermaker for the time below.</p>
-                                            <div class="row">
-                                                <div class="col-5">
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control"
-                                                            id="bomFlushDurationInput" value="5">
-                                                        <span class="input-group-text">minutes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
-                                                onclick="flush_brineomatic()">Flush</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="pickleBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="pickleBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="pickleBrineomaticModalTitle">Pickle
-                                                Watermaker
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="alert alert-warning" role="alert">
-                                                Make sure you have your watermaker plumbing configured for pickling. The
-                                                input and
-                                                output of the watermaker should lead to a bucket that contains your
-                                                pickling
-                                                solution.
-                                            </div>
-                                            <p>Pickle the watermaker for the time below.</p>
-                                            <div class="row">
-                                                <div class="col-5">
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control"
-                                                            id="bomPickleDurationInput" value="5">
-                                                        <span class="input-group-text">minutes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-warning" data-bs-dismiss="modal"
-                                                onclick="pickle_brineomatic()">Pickle</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="depickleBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="depickleBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="depickleBrineomaticModalTitle">De-pickle
-                                                Watermaker
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="alert alert-warning" role="alert">
-                                                De-pickling the watermaker will flush the membrane with salt water for
-                                                the
-                                                time below in order to clean the membrane
-                                                and plumbing of the pickling solution.
-                                            </div>
-                                            <p>De-Pickle the watermaker for the time below.</p>
-                                            <div class="row">
-                                                <div class="col-5">
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control"
-                                                            id="bomDepickleDurationInput" value="15">
-                                                        <span class="input-group-text">minutes</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-warning" data-bs-dismiss="modal"
-                                                onclick="depickle_brineomatic()">De-Pickle</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="stopBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="stopBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="stopBrineomaticTitle">Stop Watermaker
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p>If currently RUNNING, it will start a FLUSH cycle.</p>
-                                            <p>If currently FLUSHING or PICKLING, it will just stop.</p>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                                onclick="stop_brineomatic()">Stop</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="modal fade" id="manualBrineomaticModal" tabindex="-1" role="dialog"
-                                aria-labelledby="manualBrineomaticModalTitle" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h1 class="modal-title fs-5" id="stopBrineomaticTitle">Manual Mode
-                                            </h1>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p>Manual mode gives you low level access to control individual components
-                                                of your watermaker. Autoflush, fan/temperature control, etc will be
-                                                disabled.</p>
-                                            <div class="alert alert-warning" role="alert">
-                                                Warning: there are no safety checks in manual mode, please be careful as
-                                                you could possibly damage your watermaker.
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-success" data-bs-dismiss="modal"
-                                                onclick="manual_brineomatic()">Continue</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="bomGauges" class="row gx-0 my-3 mfdHide">
-                            <div class=" col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Filter Pressure</h6>
-                                <div id="filterPressureGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Membrane Pressure</h6>
-                                <div id="membranePressureGauge"></div>
-                            </div>
-                            <div class=" col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Product Salinity</h6>
-                                <div id="productSalinityGauge"></div>
-                            </div>
-                            <div class=" col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Brine Salinity</h6>
-                                <div id="brineSalinityGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Product Flowrate</h6>
-                                <div id="productFlowrateGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Brine Flowrate</h6>
-                                <div id="brineFlowrateGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Motor Temperature</h6>
-                                <div id="motorTemperatureGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Water Temperature</h6>
-                                <div id="waterTemperatureGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0 text-center">Tank Level</h6>
-                                <div id="tankLevelGauge"></div>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6 text-center">
-                                <h6 class="my-0" class="my-0">Volume Produced</h6>
-                                <div id="volumeGauge"></div>
-                            </div>
-                        </div>
-                        <div id="bomGaugesMFD" class="mfdShow row gx-0 gy-3 my-3 text-center">
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Filter Pressure</h6>
-                                <h1 id="filterPressureData" class="my-0"></h1>
-                                <h5 id="filterPressureUnits" class="text-body-tertiary">PSI</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Membrane Pressure</h6>
-                                <h1 id="membranePressureData" class="my-0"></h1>
-                                <h5 id="membranePressureUnits" class="text-body-tertiary">PSI</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Product Salinity</h6>
-                                <h1 id="productSalinityData" class="my-0"></h1>
-                                <h5 id="productSalinityUnits" class="text-body-tertiary">PPM</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Brine Salinity</h6>
-                                <h1 id="brineSalinityData" class="my-0"></h1>
-                                <h5 id="brineSalinityUnits" class="text-body-tertiary">PPM</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Product Flowrate</h6>
-                                <h1 id="productFlowrateData" class="my-0"></h1>
-                                <h5 id="productFlowrateUnits" class="text-body-tertiary">LPH</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Brine Flowrate</h6>
-                                <h1 id="brineFlowrateData" class="my-0"></h1>
-                                <h5 id="brineFlowrateUnits" class="text-body-tertiary">LPH</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0">Motor Temperature</h6>
-                                <h1 id="motorTemperatureData" class="my-0"></h1>
-                                <h5 id="motorTemperatureUnits" class="text-body-tertiary">°C</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0" class="my-0">Water Temperature</h6>
-                                <h1 id="waterTemperatureData"></h1>
-                                <h5 id="waterTemperatureUnits" class="text-body-tertiary">°C</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0" class="my-0">Tank Level</h6>
-                                <h1 id="tankLevelData"></h1>
-                                <h5 id="tankLevelUnits" class="text-body-tertiary">%</h5>
-                            </div>
-                            <div class="col-md-3 col-sm-4 col-6">
-                                <h6 class="my-0" class="my-0">Volume Produced</h6>
-                                <h1 id="bomVolumeData"></h1>
-                                <h5 id="tankLevelUnits" class="text-body-tertiary">liters</h5>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="controlDiv" style="display:none" class="col-md-12">
-                        <div id="pwmCards" class="row g-3"></div>
-                    </div>
-                    <div id="relayControlDiv" style="display:none" class="col-md-12 bomMANUAL">
-                        <h4 class="text-center">Relays</h4>
-                        <div id="relayCards" class="row g-3"></div>
-                    </div>
-                    <div id="servoControlDiv" style="display:none" class="col-md-12 bomMANUAL">
-                        <h4 class="text-center">Servos</h4>
-                        <div id="servoCards" class="row g-3"></div>
-                    </div>
                     <div id="adcControlDiv" style="display:none" class="col-md-12">
                         <h4 class="text-center">Analog Inputs</h4>
                         <table id="adcTable" class="table table-hover">
@@ -677,715 +122,624 @@
                 <div id="configPage" class="pageContainer" style="display:none">
                     <form class="row g-3" id="ConfigForm">
                         <div id="boardConfigForm"></div>
-                        <div id="pwmConfig" style="display:none" class="col-md-12">
-                            <h4>Output Configuration</h4>
-                            <div id="pwmConfigForm" class="row g-3"></div>
-                        </div>
-                        <div id="adcConfig" style="display:none" class="col-md-12">
-                            <h4>ADC Configuration</h4>
-                            <div id="adcConfigForm" class="row g-3"></div>
-                        </div>
-                        <div id="relayConfig" style="display:none" class="col-md-12">
-                            <h4>Relay Configuration</h4>
-                            <div id="relayConfigForm" class="row g-3"></div>
-                        </div>
-                        <div id="servoConfig" style="display:none" class="col-md-12">
-                            <h4>Servo Configuration</h4>
-                            <div id="servoConfigForm" class="row g-3"></div>
-                        </div>
-                        <div id="bomConfig" style="display:none" class="col-md-12">
-                            <h4>Brineomatic Configuration</h4>
-                            <div id="bomConfigForm" class="row g-3"></div>
-                        </div>
                     </form>
                 </div>
                 <div id="graphsPage" class="pageContainer" style="display:none">
-                    <div id="bomGraphs" class="col-md-12 mfdHide">
-                        <h3>Graphs</h3>
-                        <!-- Nav tabs -->
-                        <ul class="nav nav-tabs" id="bomGraphsTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="bomTemperatureGraphTab" data-bs-toggle="tab"
-                                    data-bs-target="#bomTemperatureGraphPanel" type="button" role="tab"
-                                    aria-controls="bomTemperatureGraphPanel" aria-selected="true">Temperature</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="bomPressureGraphTab" data-bs-toggle="tab"
-                                    data-bs-target="#bomPressureGraphPanel" type="button" role="tab"
-                                    aria-controls="bomPressureGraphPanel" aria-selected="false">Pressure</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="bomProductSalinityGraphTab" data-bs-toggle="tab"
-                                    data-bs-target="#bomProductSalinityGraphPanel" type="button" role="tab"
-                                    aria-controls="bomProductSalinityGraphPanel" aria-selected="false">Product
-                                    Salinity</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="bomProductFlowrateGraphTab" data-bs-toggle="tab"
-                                    data-bs-target="#bomProductFlowrateGraphPanel" type="button" role="tab"
-                                    aria-controls="bomProductFlowrateGraphPanel" aria-selected="false">Product
-                                    Flowrate</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="bomTankLevelGraphTab" data-bs-toggle="tab"
-                                    data-bs-target="#bomTankLevelGraphPanel" type="button" role="tab"
-                                    aria-controls="bomTankLevelGraphPanel" aria-selected="false">Tank
-                                    Level</button>
-                            </li>
-                        </ul>
-
-                        <!-- Tab panes -->
-                        <div class="tab-content">
-                            <div class="tab-pane fade show active" id="bomTemperatureGraphPanel" role="tabpanel"
-                                aria-labelledby="bomTemperatureGraphPanel">
-                                <h4>Temperatures</h4>
-                                <div id="temperatureChart" class="row"></div>
-                            </div>
-                            <div class="tab-pane fade" id="bomPressureGraphPanel" role="tabpanel"
-                                aria-labelledby="bomPressureGraphPanel">
-                                <h4>Pressures</h4>
-                                <div id="pressureChart" class="row"></div>
-                            </div>
-                            <div class="tab-pane fade" id="bomProductSalinityGraphPanel" role="tabpanel"
-                                aria-labelledby="bomProductSalinityGraphPanel">
-                                <h4>Product Salinity</h4>
-                                <div id="productSalinityChart" class="row"></div>
-                            </div>
-                            <div class="tab-pane fade" id="bomProductFlowrateGraphPanel" role="tabpanel"
-                                aria-labelledby="bomProductFlowrateGraphPanel">
-                                <h4>Product Flowrate</h4>
-                                <div id="productFlowrateChart" class="row"></div>
-                            </div>
-                            <div class="tab-pane fade" id="bomTankLevelGraphPanel" role="tabpanel"
-                                aria-labelledby="bomTankLevelGraphPanel">
-                                <h4>Tank Level</h4>
-                                <div id="tankLevelChart" class="row"></div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <div id="statsPage" class="pageContainer" style="display:none">
                     <div class="row">
+                        <div class="col-sm" id="statsContainer">
+                        </div>
                         <div class="col-sm">
-                            <div id="pwmStatsDiv">
-                                <h5>PWM Statistics</h5>
-                                <table id="pwmStatsTable" class="table table-striped table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Channel</th>
-                                            <th class="text-end" scope="col">aH</th>
-                                            <th class="text-end" scope="col">wH</th>
-                                            <th class="text-end" scope="col">Switches</th>
-                                            <th class="text-end" scope="col">Trips</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pwmStatsTableBody" class="table-group-divider"></tbody>
-                                </table>
-                            </div>
-                            <div id="bomStatsDiv">
-                                <h5>Brineomatic Statistics</h5>
-                                <table id="bomStatsTable" class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Name</th>
-                                            <th class="text-end" scope="col">Info</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="bomStatsTableBody" class="table-group-divider">
-                                        <tr>
-                                            <th scope="row">Total Cycles</th>
-                                            <td class="text-end" id="bomTotalCycles"></td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Total Volume</th>
-                                            <td class="text-end" id="bomTotalVolume"></td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Total Runtime</th>
-                                            <td class="text-end" id="bomTotalRuntime"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                            <h5>Board Information</h5>
+                            <table id="statsTable" class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Name</th>
+                                        <th class="text-end" scope="col">Info</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-group-divider">
+                                    <tr class="uptime" onclick="$('#last_reboot').toggle()">
+                                        <th scope="row">Uptime</th>
+                                        <td id="uptime" class="text-end"></td>
+                                    </tr>
+                                    <tr id="last_reboot" style="display: none">
+                                        <th scope="row">Last Reboot Reason</th>
+                                        <td id="last_reboot_reason" class="text-end"></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">IP Address</th>
+                                        <td id="ip_address" class="text-end"></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">WiFi Signal</th>
+                                        <td class="text-end">
+                                            <span id="rssi" class="align-middle"></span>
+                                            <svg class="rssi_icon text-danger" id="rssi_icon_0"
+                                                xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-reception-0" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M0 13.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
+                                            </svg>
+                                            <svg class="rssi_icon text-warning" id="rssi_icon_1"
+                                                xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-reception-1" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
+                                            </svg>
+                                            <svg class="rssi_icon text-warning" id="rssi_icon_2"
+                                                xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-reception-2" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
+                                            </svg>
+                                            <svg class="rssi_icon text-warning" id="rssi_icon_3"
+                                                xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-reception-3" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
+                                            </svg>
+                                            <svg class="rssi_icon text-success" id="rssi_icon_4"
+                                                xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-reception-4" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z" />
+                                            </svg>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">MQTT Server</th>
+                                        <td id="mqtt_status" class="text-end"></td>
+                                    </tr>
+                                    <tr onclick="$('#other_versions').toggle()">
+                                        <th scope="row">Firmware Version</th>
+                                        <td id="firmware_version" class="text-end"></td>
+                                    </tr>
+                                    <tr id="other_versions" style="display: none">
+                                        <td colspan="2" align="right">
+                                            <table class="table ministats">
+                                                <tbody>
+                                                    <tr>
+                                                        <th scope="row">Hardware</th>
+                                                        <td id="hardware_version" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">Yarrboard Client</th>
+                                                        <td id="yarrboard_client_version" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">ESP-IDF</th>
+                                                        <td id="esp_idf_version" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">Arduino</th>
+                                                        <td id="arduino_version" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">PsychicHttp</th>
+                                                        <td id="psychic_http_version" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">Git Hash</th>
+                                                        <td id="git_hash" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th scope="row">Build Time</th>
+                                                        <td id="build_time" class="text-end"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr id="bus_voltage_row">
+                                        <th scope="row">Bus Voltage</th>
+                                        <td id="bus_voltage" class="text-end"></td>
+                                    </tr>
+                                    <tr id="fan_rpm_row">
+                                        <th scope="row">Fan RPMs</th>
+                                        <td id="fan_rpm" class="text-end"></td>
+                                    </tr>
+                                    <tr onclick="$('#message_stats').toggle()">
+                                        <th scope="row">Loop Speed</th>
+                                        <td id="fps" class="text-end"></td>
+                                    </tr>
+                                    <tr id="message_stats" style="display: none">
+                                        <td colspan="2" align="right">
+                                            <table class="table ministats">
+                                                <tbody>
+                                                    <tr>
+                                                        <th>Message RX Rate</th>
+                                                        <td id="received_message_mps" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Message TX Rate</th>
+                                                        <td id="sent_message_mps" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Message RX Total</th>
+                                                        <td id="received_message_total" class="text-end">
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Message TX Total</th>
+                                                        <td id="sent_message_total" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Websocket Clients</th>
+                                                        <td id="websocket_client_count" class="text-end">
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>HTTP Clients</th>
+                                                        <td id="http_client_count" class="text-end"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Total Clients</th>
+                                                        <td id="total_client_count" class="text-end"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr onclick="$('#memory_stats').toggle()">
+                                        <th scope="row">Memory Usage</th>
+                                        <td class="align-middle">
+                                            <div id="memory_usage" class="progress" role="progressbar"
+                                                aria-label="Memory Usage" aria-valuenow="0" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                                <div class="progress-bar" style="width: 0%">0 KiB</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr id="memory_stats" style="display: none">
+                                        <td colspan="2" align="right">
+                                            <table class="table ministats">
+                                                <tr>
+                                                    <th scope="row">Heap Size</th>
+                                                    <td id="heap_size" class="text-end"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th scope="row">Min Free Heap</th>
+                                                    <td id="min_free_heap" class="text-end"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th scope="row">Free Heap</th>
+                                                    <td id="free_heap" class="text-end"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th scope="row">Max Alloc Heap</th>
+                                                    <td id="max_alloc_heap" class="text-end"></td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
 
-                    </div>
-                    <div class="col-sm">
-                        <h5>Board Information</h5>
-                        <table id="statsTable" class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Name</th>
-                                    <th class="text-end" scope="col">Info</th>
-                                </tr>
-                            </thead>
-                            <tbody class="table-group-divider">
-                                <tr class="uptime" onclick="$('#last_reboot').toggle()">
-                                    <th scope="row">Uptime</th>
-                                    <td id="uptime" class="text-end"></td>
-                                </tr>
-                                <tr id="last_reboot" style="display: none">
-                                    <th scope="row">Last Reboot Reason</th>
-                                    <td id="last_reboot_reason" class="text-end"></td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">IP Address</th>
-                                    <td id="ip_address" class="text-end"></td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">WiFi Signal</th>
-                                    <td class="text-end">
-                                        <span id="rssi" class="align-middle"></span>
-                                        <svg class="rssi_icon text-danger" id="rssi_icon_0"
-                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-reception-0" viewBox="0 0 16 16">
-                                            <path
-                                                d="M0 13.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
-                                        </svg>
-                                        <svg class="rssi_icon text-warning" id="rssi_icon_1"
-                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-reception-1" viewBox="0 0 16 16">
-                                            <path
-                                                d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
-                                        </svg>
-                                        <svg class="rssi_icon text-warning" id="rssi_icon_2"
-                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-reception-2" viewBox="0 0 16 16">
-                                            <path
-                                                d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m4 0a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
-                                        </svg>
-                                        <svg class="rssi_icon text-warning" id="rssi_icon_3"
-                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-reception-3" viewBox="0 0 16 16">
-                                            <path
-                                                d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4 8a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
-                                        </svg>
-                                        <svg class="rssi_icon text-success" id="rssi_icon_4"
-                                            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-reception-4" viewBox="0 0 16 16">
-                                            <path
-                                                d="M0 11.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zm4-3a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z" />
-                                        </svg>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">MQTT Server</th>
-                                    <td id="mqtt_status" class="text-end"></td>
-                                </tr>
-                                <tr onclick="$('#other_versions').toggle()">
-                                    <th scope="row">Firmware Version</th>
-                                    <td id="firmware_version" class="text-end"></td>
-                                </tr>
-                                <tr id="other_versions" style="display: none">
-                                    <td colspan="2" align="right">
-                                        <table class="table ministats">
-                                            <tbody>
-                                                <tr>
-                                                    <th scope="row">Hardware</th>
-                                                    <td id="hardware_version" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">Yarrboard Client</th>
-                                                    <td id="yarrboard_client_version" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">ESP-IDF</th>
-                                                    <td id="esp_idf_version" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">Arduino</th>
-                                                    <td id="arduino_version" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">PsychicHttp</th>
-                                                    <td id="psychic_http_version" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">Git Hash</th>
-                                                    <td id="git_hash" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th scope="row">Build Time</th>
-                                                    <td id="build_time" class="text-end"></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr id="bus_voltage_row">
-                                    <th scope="row">Bus Voltage</th>
-                                    <td id="bus_voltage" class="text-end"></td>
-                                </tr>
-                                <tr id="fan_rpm_row">
-                                    <th scope="row">Fan RPMs</th>
-                                    <td id="fan_rpm" class="text-end"></td>
-                                </tr>
-                                <tr onclick="$('#message_stats').toggle()">
-                                    <th scope="row">Loop Speed</th>
-                                    <td id="fps" class="text-end"></td>
-                                </tr>
-                                <tr id="message_stats" style="display: none">
-                                    <td colspan="2" align="right">
-                                        <table class="table ministats">
-                                            <tbody>
-                                                <tr>
-                                                    <th>Message RX Rate</th>
-                                                    <td id="received_message_mps" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Message TX Rate</th>
-                                                    <td id="sent_message_mps" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Message RX Total</th>
-                                                    <td id="received_message_total" class="text-end">
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Message TX Total</th>
-                                                    <td id="sent_message_total" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Websocket Clients</th>
-                                                    <td id="websocket_client_count" class="text-end">
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <th>HTTP Clients</th>
-                                                    <td id="http_client_count" class="text-end"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Total Clients</th>
-                                                    <td id="total_client_count" class="text-end"></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr onclick="$('#memory_stats').toggle()">
-                                    <th scope="row">Memory Usage</th>
-                                    <td class="align-middle">
-                                        <div id="memory_usage" class="progress" role="progressbar"
-                                            aria-label="Memory Usage" aria-valuenow="0" aria-valuemin="0"
-                                            aria-valuemax="100">
-                                            <div class="progress-bar" style="width: 0%">0 KiB</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr id="memory_stats" style="display: none">
-                                    <td colspan="2" align="right">
-                                        <table class="table ministats">
-                                            <tr>
-                                                <th scope="row">Heap Size</th>
-                                                <td id="heap_size" class="text-end"></td>
-                                            </tr>
-                                            <tr>
-                                                <th scope="row">Min Free Heap</th>
-                                                <td id="min_free_heap" class="text-end"></td>
-                                            </tr>
-                                            <tr>
-                                                <th scope="row">Free Heap</th>
-                                                <td id="free_heap" class="text-end"></td>
-                                            </tr>
-                                            <tr>
-                                                <th scope="row">Max Alloc Heap</th>
-                                                <td id="max_alloc_heap" class="text-end"></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-
-                                <tr>
-                                    <th scope="row">Unique ID</th>
-                                    <td id="uuid" class="text-end"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div id="networkPage" class="pageContainer" style="display:none">
-                <div class="row justify-content-center">
-                    <div class="col-md-10 col-lg-9 mb-3">
-                        <h5>Network Configuration</h5>
-                        <div class="mb-3">
-                            <label for="wifi_mode" class="col-form-label">Wifi Mode</label>
-                            <div>
-                                <select id="wifi_mode" class="form-select" aria-label="Wifi Mode">
-                                    <option value="ap">AP (You connect to Yarrboard)</option>
-                                    <option value="client">Client (Yarrboard connects to WiFi)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="wifi_ssid" class="col-form-label">Wifi Name (SSID)</label>
-                            <div class="">
-                                <input id="wifi_ssid" type="text" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="wifi_pass" class="col-form-label">Wifi Password</label>
-                            <div class="">
-                                <input id="wifi_pass" type="text" class="form-control">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="local_hostname" class="col-form-label">Local Hostname</label>
-                            <div class="input-group">
-                                <input id="local_hostname" type="text" class="form-control">
-                                <span class="input-group-text">.local</span>
-                            </div>
+                                    <tr>
+                                        <th scope="row">Unique ID</th>
+                                        <td id="uuid" class="text-end"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-                <div class="mb-3 text-center">
-                    <button type="button" class="btn btn-primary" onclick="save_network_settings()">Save
-                        Settings</button>
-                </div>
-            </div>
-            <div id="settingsPage" class="pageContainer" style="display:none">
-                <div class="row">
-                    <div class="col-md-10 col-lg-9 mb-3">
-                        <h5>App Configuration</h5>
-                        <div class="mb-3">
-                            <label for="default_role" class="col-form-label">Default User Role</label>
+                <div id="settingsPage" class="pageContainer" style="display:none">
+                    <h4>Settings</h4>
+                    <div id="authenticationSettingsForm" class="p-3 mb-3 border border-secondary rounded">
+                        <h5>Authentication</h5>
+                        <div class="form-floating mb-3">
                             <select id="default_role" class="form-select" aria-label="Default User Role">
                                 <option value="nobody">Nobody - Everyone must login.</option>
-                                <option value="guest">Guest - Anyone can view and interact. (Admin must login)
+                                <option value="guest">Guest - Anyone can view and interact. (Admin must
+                                    login)
                                 </option>
                                 <option value="admin">Admin - Anyone has full control. (No login)</option>
                             </select>
+                            <label for="default_role">Default User Role</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 admin_credentials">
-                            <label for="admin_user" class="col-form-label">Admin Username</label>
-                            <div class="">
-                                <input id="admin_user" type="text" class="form-control">
-                            </div>
+
+                        <div class="form-floating mb-3 admin_credentials">
+                            <input id="admin_user" type="text" class="form-control">
+                            <label for="admin_user">Admin Username</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 admin_credentials">
-                            <label for="admin_pass" class="col-form-label">Admin Password</label>
-                            <div class="">
-                                <input id="admin_pass" type="text" class="form-control">
-                            </div>
+
+                        <div class="form-floating mb-3 admin_credentials">
+                            <input id="admin_pass" type="text" class="form-control">
+                            <label for="admin_pass">Admin Password</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 guest_credentials">
-                            <label for="guest_user" class="col-form-label">Guest Username</label>
-                            <div class="">
-                                <input id="guest_user" type="text" class="form-control">
-                            </div>
+
+                        <div class="form-floating mb-3 guest_credentials">
+                            <input id="guest_user" type="text" class="form-control">
+                            <label for="guest_user">Guest Username</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 guest_credentials">
-                            <label for="guest_pass" class="col-form-label">Guest Password</label>
-                            <div class="">
-                                <input id="guest_pass" type="text" class="form-control">
-                            </div>
+
+                        <div class="form-floating mb-3 guest_credentials">
+                            <input id="guest_pass" type="text" class="form-control">
+                            <label for="guest_pass">Guest Password</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_ssl" checked>
-                                <label class="form-check-label" for="app_enable_ssl">
-                                    Enable SSL / HTTPS Encryption? (<a
-                                        href="https://github.com/hoeken/yarrboard#enable-ssl">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="text-center">
+                            <button id="saveAuthenticationSettings" type="button" class="btn btn-primary">
+                                Save Authentication Settings
+                            </button>
                         </div>
-                        <div class="mb-3" style="display: none" id="server_cert_container">
-                            <label for="server_cert" class="col-form-label">Server Certificate</label>
-                            <div class="">
-                                <textarea class="form-control" id="server_cert" rows="4"></textarea>
-                            </div>
+                    </div>
+                    <div id="webServerSettingsForm" class="p-3 mb-3 border border-secondary rounded">
+                        <h5>Web Server</h5>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_api" checked>
+                            <label class="form-check-label" for="app_enable_api">
+                                Enable Web API - <a
+                                    href="https://github.com/hoeken/yarrboard#web-api-protocol">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3" style="display: none" id="server_key_container">
-                            <label for="server_key" class="col-form-label">Server Private Key</label>
-                            <div class="">
-                                <textarea class="form-control" id="server_key" rows="4"></textarea>
-                            </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_mfd" checked>
+                            <label class="form-check-label" for="app_enable_mfd">
+                                Enable MFD Integration - <a
+                                    href="https://github.com/hoeken/yarrboard#mfd-integration">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_mqtt" checked>
-                                <label class="form-check-label" for="app_enable_mqtt">
-                                    Enable MQTT Publishing? (<a
-                                        href="https://github.com/hoeken/yarrboard#enable-mqtt">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_ssl" checked>
+                            <label class="form-check-label" for="app_enable_ssl">
+                                Enable SSL / HTTPS Encryption - <a
+                                    href="https://github.com/hoeken/yarrboard#enable-ssl">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_ha_integration"
-                                    checked>
-                                <label class="form-check-label" for="app_enable_mqtt">
-                                    Enable Home Assistant Integration? (<a
-                                        href="https://github.com/hoeken/yarrboard#enable-ha">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3" style="display: none" id="server_cert_container">
+                            <textarea class="form-control" id="server_cert" placeholder=""></textarea>
+                            <label for="server_cert">Server Certificate</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value=""
-                                    id="app_use_hostname_as_mqtt_uuid" checked>
-                                <label class="form-check-label" for="app_use_hostname_as_mqtt_uuid">
-                                    Use hostname for MQTT Unique Id?
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3" style="display: none" id="server_key_container">
+                            <textarea class="form-control" id="server_key" placeholder=""></textarea>
+                            <label for="server_key">Server Private Key</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <label for="mqtt_server" class="col-form-label">MQTT Server</label>
-                            <div class="">
-                                <input id="mqtt_server" type="text" class="form-control">
-                            </div>
+
+                        <div class="text-center">
+                            <button id="saveWebServerSettings" type="button" class="btn btn-primary">
+                                Save Web Server Settings</button>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <label for="mqtt_user" class="col-form-label">MQTT Username</label>
-                            <div class="">
-                                <input id="mqtt_user" type="text" class="form-control">
-                            </div>
+                    </div>
+                    <div id="mqttSettingsForm" class="p-3 mb-3 border border-secondary rounded">
+                        <h5>MQTT</h5>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_mqtt" checked>
+                            <label class="form-check-label" for="app_enable_mqtt">
+                                Enable MQTT Publishing - <a
+                                    href="https://github.com/hoeken/yarrboard#enable-mqtt">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <label for="mqtt_pass" class="col-form-label">MQTT Password</label>
-                            <div class="">
-                                <input id="mqtt_pass" type="text" class="form-control">
-                            </div>
+
+                        <div class="form-check form-switch mb-3 mqtt_field" style="display: none">
+                            <input class="form-check-input" type="checkbox" id="app_use_hostname_as_mqtt_uuid" checked>
+                            <label class="form-check-label" for="app_use_hostname_as_mqtt_uuid">
+                                Use hostname as MQTT Unique ID
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3 mqtt_field" style="display: none">
-                            <label for="mqtt_cert" class="col-form-label">MQTT Certificate</label>
-                            <div class="">
-                                <textarea class="form-control" id="mqtt_cert" rows="4"></textarea>
-                            </div>
+
+                        <div class="form-check form-switch mb-3 mqtt_field" style="display: none">
+                            <input class="form-check-input" type="checkbox" id="app_enable_ha_integration" checked>
+                            <label class="form-check-label" for="app_enable_ha_integration">
+                                Enable Home Assistant Integration - <a
+                                    href="https://github.com/hoeken/yarrboard#enable-ha">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_ota" checked>
-                                <label class="form-check-label" for="app_enable_ota">
-                                    Enable OTA uploading (for dev w/ VSCode)
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3 mqtt_field" style="display: none">
+                            <input id="mqtt_server" type="text" class="form-control">
+                            <label for="mqtt_server">MQTT Server</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_mfd" checked>
-                                <label class="form-check-label" for="app_enable_mfd">
-                                    Enable MFD Integration (<a
-                                        href="https://github.com/hoeken/yarrboard#mfd-integration">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3 mqtt_field" style="display: none">
+                            <input id="mqtt_user" type="text" class="form-control">
+                            <label for="mqtt_user">MQTT Username</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_api" checked>
-                                <label class="form-check-label" for="app_enable_api">
-                                    Enable Web API (<a
-                                        href="https://github.com/hoeken/yarrboard#web-api-protocol">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3 mqtt_field" style="display: none">
+                            <input id="mqtt_pass" type="text" class="form-control">
+                            <label for="mqtt_pass">MQTT Password</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="app_enable_serial" checked>
-                                <label class="form-check-label" for="app_enable_serial">
-                                    Enable Serial / USB API (<a
-                                        href="https://github.com/hoeken/yarrboard#serial-api-protocol">documentation</a>)
-                                </label>
-                            </div>
+
+                        <div class="form-floating mb-3 mqtt_field" style="display: none">
+                            <textarea class="form-control" id="mqtt_cert" placeholder=""></textarea>
+                            <label for="mqtt_cert">MQTT Certificate</label>
+                            <div class="invalid-feedback"></div>
                         </div>
-                        <div class="mb-3">
-                            <label for="app_update_interval" class="col-form-label">Update Interval (ms)</label>
-                            <div class="">
-                                <input id="app_update_interval" type="text" class="form-control">
-                            </div>
+
+                        <div class="text-center">
+                            <button id="saveMQTTSettings" type="button" class="btn btn-primary">
+                                Save MQTT Settings
+                            </button>
+                        </div>
+                    </div>
+                    <div id="networkSettingsForm" class="p-3 mb-3 border border-secondary rounded">
+                        <h5>Network</h5>
+                        <div class="form-floating mb-3">
+                            <select id="wifi_mode" class="form-select" aria-label="Wifi Mode">
+                                <option value="client">Client (Yarrboard connects to WiFi)</option>
+                                <option value="ap">AP (You connect to Yarrboard)</option>
+                            </select>
+                            <label for="wifi_mode">Wifi Mode</label>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input id="wifi_ssid" type="text" class="form-control">
+                            <label for="wifi_ssid">Wifi Name (SSID)</label>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input id="wifi_pass" type="text" class="form-control">
+                            <label for="wifi_pass">Wifi Password</label>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="input-group form-floating mb-3">
+                            <input id="local_hostname" type="text" class="form-control" placeholder="">
+                            <label for="local_hostname">Local Hostname</label>
+                            <span class="input-group-text">.local</span>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="text-center">
+                            <button id="saveNetworkSettings" type="button" class="btn btn-primary">
+                                Save Network Settings
+                            </button>
+                        </div>
+                    </div>
+                    <div id="miscSettingsForm" class="p-3 mb-3 border border-secondary rounded">
+                        <h5>Miscellaneous</h5>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_ota" checked>
+                            <label class="form-check-label" for="app_enable_ota">
+                                Enable Arduino OTA - for development w/ VSCode
+                            </label>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="app_enable_serial" checked>
+                            <label class="form-check-label" for="app_enable_serial">
+                                Enable Serial / USB API - <a
+                                    href="https://github.com/hoeken/yarrboard#serial-api-protocol">documentation</a>
+                            </label>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
+                        <div class="text-center">
+                            <button id="saveMiscellaneousSettings" type="button" class="btn btn-primary">
+                                Save Miscellaneous Settings
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div class="mb-3 text-center">
-                    <button type="button" class="btn btn-primary" onclick="save_app_settings()">Save
-                        Settings</button>
-                </div>
-            </div>
-            <div id="systemPage" class="pageContainer" style="display:none">
-                <div class="row justify-content-center">
-                    <div class="col-md-12 mb-3">
-                        <div class="row">
-                            <div id="adminAlertPlaceholder"></div>
-                            <h5>Board Configuration</h5>
-                            <div class="small mb-1">JSON configuration file for the board: Edit it here, download a
-                                backup, or load a whole config at once.</div>
-                            <div id="configurationUI">
-                                <div class="mb-3">
-                                    <textarea class="form-control" id="configurationTextarea" rows="10"
-                                        placeholder="Loading..."></textarea>
-                                    <div id="invalidConfigurationJSON" class="text-danger" style="display: none">
-                                        Invalid JSON found.
+                <div id="systemPage" class="pageContainer" style="display:none">
+                    <div class="row justify-content-center">
+                        <div class="col-md-12 mb-3">
+                            <div class="row">
+                                <div id="adminAlertPlaceholder"></div>
+                                <h5>Board Configuration</h5>
+                                <div class="small mb-1">JSON configuration file for the board: Edit it here,
+                                    download a
+                                    backup, or load a whole config at once.</div>
+                                <div id="configurationUI">
+                                    <div class="mb-3">
+                                        <textarea class="form-control" id="configurationTextarea" rows="10"
+                                            placeholder="Loading..."></textarea>
+                                        <div id="invalidConfigurationJSON" class="text-danger" style="display: none">
+                                            Invalid JSON found.
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 justify-content-end">
+                                        <button id="configurationOpen"
+                                            class="btn btn-secondary d-flex align-items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-folder2-open" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M.5 3a.5.5 0 0 1 .5-.5h3.672a.5.5 0 0 1 .353.146L6.5 4h7a.5.5 0 0 1 .5.5V6H1V3.5a.5.5 0 0 1-.5-.5" />
+                                                <path
+                                                    d="M.5 7h15l-1.528 6.11a2 2 0 0 1-1.94 1.39H3.968a2 2 0 0 1-1.94-1.39z" />
+                                            </svg>
+                                            Open
+                                        </button>
+                                        <input id="configurationFileInput" type="file"
+                                            accept=".json,application/json,text/*" hidden>
+
+                                        <button id="configurationCopy"
+                                            class="btn btn-secondary d-flex align-items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-copy" viewBox="0 0 16 16">
+                                                <path fill-rule="evenodd"
+                                                    d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z" />
+                                            </svg>
+                                            <span id="copyIndicator">Copy</span>
+                                        </button>
+
+                                        <button id="configurationSave"
+                                            class="btn btn-primary d-flex align-items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-floppy" viewBox="0 0 16 16">
+                                                <path d="M11 2H9v3h2z" />
+                                                <path
+                                                    d="M1.5 0h11.586a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13A1.5 1.5 0 0 1 1.5 0M1 1.5v13a.5.5 0 0 0 .5.5H2v-4.5A1.5 1.5 0 0 1 3.5 9h9a1.5 1.5 0 0 1 1.5 1.5V15h.5a.5.5 0 0 0 .5-.5V2.914a.5.5 0 0 0-.146-.353l-1.415-1.415A.5.5 0 0 0 13.086 1H13v4.5A1.5 1.5 0 0 1 11.5 7h-7A1.5 1.5 0 0 1 3 5.5V1H1.5a.5.5 0 0 0-.5.5m3 4a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V1H4zM3 15h10v-4.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5z" />
+                                            </svg>
+                                            <span id="saveIndicator">Save</span>
+                                        </button>
+
+                                        <button id="configurationDownload"
+                                            class="btn btn-success d-flex align-items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
+                                                <path
+                                                    d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z" />
+                                            </svg>
+                                            Download
+                                        </button>
                                     </div>
                                 </div>
-                                <div class="d-flex gap-2 justify-content-end">
-                                    <button id="configurationOpen"
-                                        class="btn btn-secondary d-flex align-items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-folder2-open" viewBox="0 0 16 16">
-                                            <path
-                                                d="M.5 3a.5.5 0 0 1 .5-.5h3.672a.5.5 0 0 1 .353.146L6.5 4h7a.5.5 0 0 1 .5.5V6H1V3.5a.5.5 0 0 1-.5-.5" />
-                                            <path
-                                                d="M.5 7h15l-1.528 6.11a2 2 0 0 1-1.94 1.39H3.968a2 2 0 0 1-1.94-1.39z" />
-                                        </svg>
-                                        Open
-                                    </button>
-                                    <input id="configurationFileInput" type="file"
-                                        accept=".json,application/json,text/*" hidden>
-
-                                    <button id="configurationCopy"
-                                        class="btn btn-secondary d-flex align-items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-copy" viewBox="0 0 16 16">
-                                            <path fill-rule="evenodd"
-                                                d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z" />
-                                        </svg>
-                                        <span id="copyIndicator">Copy</span>
-                                    </button>
-
-                                    <button id="configurationSave"
-                                        class="btn btn-primary d-flex align-items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-floppy" viewBox="0 0 16 16">
-                                            <path d="M11 2H9v3h2z" />
-                                            <path
-                                                d="M1.5 0h11.586a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13A1.5 1.5 0 0 1 1.5 0M1 1.5v13a.5.5 0 0 0 .5.5H2v-4.5A1.5 1.5 0 0 1 3.5 9h9a1.5 1.5 0 0 1 1.5 1.5V15h.5a.5.5 0 0 0 .5-.5V2.914a.5.5 0 0 0-.146-.353l-1.415-1.415A.5.5 0 0 0 13.086 1H13v4.5A1.5 1.5 0 0 1 11.5 7h-7A1.5 1.5 0 0 1 3 5.5V1H1.5a.5.5 0 0 0-.5.5m3 4a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V1H4zM3 15h10v-4.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5z" />
-                                        </svg>
-                                        <span id="saveIndicator">Save</span>
-                                    </button>
-
-                                    <button id="configurationDownload"
-                                        class="btn btn-success d-flex align-items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                            fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
-                                            <path
-                                                d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
-                                            <path
-                                                d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z" />
-                                        </svg>
-                                        Download
-                                    </button>
+                                <h5>Firmware</h5>
+                                <div id="firmware_checking" class="alert alert-secondary" role="alert">
+                                    Checking for new firmware...
                                 </div>
-                            </div>
-                            <h5>Firmware</h5>
-                            <div id="firmware_checking" class="alert alert-secondary" role="alert">
-                                Checking for new firmware...
-                            </div>
-                            <div id="firmware_up_to_date" class="alert alert-success" role="alert"
-                                style="display: none">
-                                Firmware is up to date.
-                            </div>
-                            <div id="firmware_update_available" style="display: none" class="alert alert-primary mt-3"
-                                role="alert">
-                                <h1>New Firmware Available</h1>
-                                <ul>
-                                    <li>Version: <span id="new_firmware_version"></span> (<a id="firmware_bin"
-                                            href="">Firmware</a>)</li>
-                                </ul>
-                                <div id="firmware_changelog" style="display: none">
-                                    <h1>Changelog</h1>
+                                <div id="firmware_up_to_date" class="alert alert-success" role="alert"
+                                    style="display: none">
+                                    Firmware is up to date.
                                 </div>
-                                <button id="btn_update_firmware" type="button" class="btn btn-primary"
-                                    onclick="update_firmware()">Update Firmware</button>
-                                <br />
-                                <div id="progress_wrapper" style="display: none" class="mt-4">
-                                    <p>Update may take a while, please be patient. After an update, this page
-                                        will
-                                        refresh. You may need to clear your browser cache after updating the
-                                        firmware if you are having issues.</p>
-                                    Firmware Update:
-                                    <div class="progress" role="progressbar" aria-label="Firmware Update"
-                                        aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                        <div id="firmware_progress"
-                                            class="progress-bar progress-bar-striped progress-bar-animated"
-                                            style="width: 0%">
+                                <div id="firmware_update_available" style="display: none"
+                                    class="alert alert-primary mt-3" role="alert">
+                                    <h1>New Firmware Available</h1>
+                                    <ul>
+                                        <li>Version: <span id="new_firmware_version"></span> (<a id="firmware_bin"
+                                                href="">Firmware</a>)</li>
+                                    </ul>
+                                    <div id="firmware_changelog" style="display: none">
+                                        <h1>Changelog</h1>
+                                    </div>
+                                    <button id="btn_update_firmware" type="button" class="btn btn-primary"
+                                        onclick="YB.App.updateFirmware()">Update Firmware</button>
+                                    <br />
+                                    <div id="progress_wrapper" style="display: none" class="mt-4">
+                                        <p>Update may take a while, please be patient. After an update, this
+                                            page
+                                            will
+                                            refresh. You may need to clear your browser cache after updating the
+                                            firmware if you are having issues.</p>
+                                        Firmware Update:
+                                        <div class="progress" role="progressbar" aria-label="Firmware Update"
+                                            aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                            <div id="firmware_progress"
+                                                class="progress-bar progress-bar-striped progress-bar-animated"
+                                                style="width: 0%">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row mt-3">
-                            <h5 class="mb-3">Danger Zone</h5>
-                            <div class="d-flex justify-content-between">
-                                <button class="btn btn-primary btn-lg w-50 me-2" type="button"
-                                    onclick="restart_board()">
-                                    Restart Board
-                                </button>
-                                <button class="btn btn-danger btn-lg w-50 ms-2" type="button"
-                                    onclick="reset_to_factory()">
-                                    Reset to Factory Defaults
-                                </button>
+                            <div class="row mt-3">
+                                <h5 class="mb-3">Danger Zone</h5>
+                                <div class="d-flex justify-content-between">
+                                    <button class="btn btn-primary btn-lg w-50 me-2" type="button"
+                                        onclick="YB.App.restartBoard()">
+                                        Restart Board
+                                    </button>
+                                    <button class="btn btn-danger btn-lg w-50 ms-2" type="button"
+                                        onclick="YB.App.resetToFactory()">
+                                        Reset to Factory Defaults
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div id="loginPage" style="display:none" class="pageContainer form-signin mt-3 mx-auto">
-                <h1 class="text-center"><img class="mb-4 logo" src="/favicon.png" alt="" width="72" height="72">
-                    Yarrboard</h1>
-                <div class="form-floating">
-                    <input type="username" class="form-control" id="username" placeholder="admin">
-                    <label for="username">Username</label>
-                </div>
-                <div class="form-floating">
-                    <input type="password" class="form-control" id="password" placeholder="admin">
-                    <label for="password">Password</label>
-                </div>
-                <button class="btn btn-primary w-100 py-2" onclick="do_login()">Log in</button>
-                <p class="text-center text-muted my-2">Default: admin/admin or guest/guest</p>
-                <div id="liveAlertPlaceholder"></div>
-                <script>
-                </script>
-            </div>
-    </div>
-    </main>
-    <footer class="p-4 text-body-secondary text-center">
-        <div id="darkModeUI" class="row justify-content-center">
-            <div class="col-auto">
-                <label for="darkSwitch">Dark&nbsp;Mode</label>
-            </div>
-            <div class="col-auto">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="darkSwitch">
+                <div id="loginPage" style="display:none" class="pageContainer form-signin mt-3 mx-auto">
+                    <h1 class="text-center"><img class="mb-4 logo" src="/favicon.png" alt="" width="72" height="72">
+                        <span id="loginTitle">Yarrboard</span>
+                    </h1>
+                    <div class="form-floating">
+                        <input type="username" class="form-control" id="username" placeholder="admin">
+                        <label for="username">Username</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="password" class="form-control" id="password" placeholder="admin">
+                        <label for="password">Password</label>
+                    </div>
+                    <button class="btn btn-primary w-100 py-2" onclick="YB.App.doLogin()">Log in</button>
+                    <p class="text-center text-muted my-2">Default: admin/admin or guest/guest</p>
+                    <div id="liveAlertPlaceholder"></div>
+                    <script>
+                    </script>
                 </div>
             </div>
-        </div>
-        <div id="brightnessUI" class="row justify-content-center" style="display: none">
-            <div class="col-auto">
-                <label for="brightnessSlider">Brightness</label>
-            </div>
-            <div class="col-auto">
-                <div id="brightnessControl" class="form-check form-switch">
-                    <input type="range" class="form-range" min="0" max="100" id="brightnessSlider">
+        </main>
+        <footer class="p-4 text-body-secondary text-center">
+            <div id="darkModeUI" class="row justify-content-center">
+                <div class="col-auto">
+                    <label for="darkSwitch">Dark&nbsp;Mode</label>
+                </div>
+                <div class="col-auto">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="darkSwitch">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="row justify-content-center">
-            <div id="websocket_status">
-                WebSocket:
-                <span id="connection_startup" class="connection_status text-primary">CONNECTING</span>
-                <span id="connection_good" class="connection_status text-success" style="display: none">CONNECTED</span>
-                <span id="connection_retrying" class="connection_status text-warning"
-                    style="display: none">RETRYING</span>
-                <span id="connection_failed" class="connection_status text-danger" style="display: none">FAILED</span>
+            <div id="brightnessUI" class="row justify-content-center" style="display: none">
+                <div class="col-auto">
+                    <label for="brightnessSlider">Brightness</label>
+                </div>
+                <div class="col-auto">
+                    <div id="brightnessControl" class="form-check form-switch">
+                        <input type="range" class="form-range" min="0" max="100" id="brightnessSlider">
+                    </div>
+                </div>
             </div>
-            <div id="copyright">
-                <a id="projectName" href="https://github.com/hoeken/yarrboard">Yarrboard</a> &copy; <span
-                    onclick="$('#debug_log').toggle()" id="year">2024</span><br>
-                <a href="https://www.oshwa.org/"><img src="oshw-logo-antipixel.webp"></a>
+            <div class="row justify-content-center">
+                <div id="websocket_status">
+                    WebSocket:
+                    <span id="connection_startup" class="connection_status text-primary">CONNECTING</span>
+                    <span id="connection_good" class="connection_status text-success"
+                        style="display: none">CONNECTED</span>
+                    <span id="connection_retrying" class="connection_status text-warning"
+                        style="display: none">RETRYING</span>
+                    <span id="connection_failed" class="connection_status text-danger"
+                        style="display: none">FAILED</span>
+                </div>
+                <div id="copyright">
+                    <a id="projectName" href="https://github.com/hoeken/yarrboard">Yarrboard</a> &copy; <span
+                        onclick="$('#debug_log').toggle()" id="year">2025</span><br>
+                    <a href="https://www.oshwa.org/"><img src="oshw-logo-antipixel.webp"></a>
+                </div>
             </div>
-        </div>
-        <div id="debug_log" style="display: none">
-            Viewport:
+            <div id="debug_log" style="display: none">
+                <h4>Debug Console</h4>
+                <form id="json_console_form" class="row g-2 mb-2 align-items-center">
+                    <div class="col flex-grow-1">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="json_console_payload"
+                                name="json_console_payload" placeholder="Enter JSON Command...">
+                            <button type="button" id="json_console_send" class="btn btn-primary">Send</button>
+                        </div>
+                    </div>
+                    <div class=" col-auto form-check ms-2">
+                        <input class="form-check-input" type="checkbox" id="debug_log_autoscroll"
+                            name="debug_log_autoscroll" checked>
+                        <label class="form-check-label" for="debug_log_autoscroll">Autoscroll</label>
+                    </div>
+                </form>
+                <textarea id="debug_log_text" style="width: 100%; height: 300px"></textarea>
+            </div>
+            <!-- Viewport:
             <span class="d-none d-xs-block d-sm-none">xs</span>
             <span class="d-none d-sm-block d-md-none">sm</span>
             <span class="d-none d-md-block d-lg-none">md</span>
             <span class="d-none d-lg-block d-xl-none">lg</span>
             <span class="d-none d-xl-block d-xxl-none">xl</span>
-            <span class="d-none d-xxl-block">xxl</span>
-            <h3>Debug Log</h3>
-            <textarea id="debug_log_text" style="width: 100%; height: 200px"></textarea>
-        </div>
-    </footer>
+            <span class="d-none d-xxl-block">xxl</span> -->
+        </footer>
     </div>
 </body>
 

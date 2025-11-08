@@ -33,7 +33,7 @@
   #include "stepper_channel.h"
 #endif
 
-char board_name[YB_BOARD_NAME_LENGTH] = "Yarrboard";
+char board_name[YB_BOARD_NAME_LENGTH] = YB_BOARD_NAME;
 char admin_user[YB_USERNAME_LENGTH] = "admin";
 char admin_pass[YB_PASSWORD_LENGTH] = "admin";
 char guest_user[YB_USERNAME_LENGTH] = "guest";
@@ -114,8 +114,6 @@ void handleSerialJson()
 {
   JsonDocument input;
   DeserializationError err = deserializeJson(input, Serial);
-
-  // StaticJsonDocument<YB_LARGE_JSON_SIZE> output;
   JsonDocument output;
 
   // ignore newlines with serial.
@@ -238,8 +236,14 @@ void handleReceivedJSON(JsonVariantConst input, JsonVariant output, YBMode mode,
       return handleSetNetworkConfig(input, output);
     else if (!strcmp(cmd, "get_app_config"))
       return generateAppConfigMessage(output);
-    else if (!strcmp(cmd, "set_app_config"))
-      return handleSetAppConfig(input, output);
+    else if (!strcmp(cmd, "set_authentication_config"))
+      return handleSetAuthenticationConfig(input, output);
+    else if (!strcmp(cmd, "set_webserver_config"))
+      return handleSetWebServerConfig(input, output);
+    else if (!strcmp(cmd, "set_mqtt_config"))
+      return handleSetMQTTConfig(input, output);
+    else if (!strcmp(cmd, "set_misc_config"))
+      return handleSetMiscellaneousConfig(input, output);
     else if (!strcmp(cmd, "restart"))
       return handleRestart(input, output);
     else if (!strcmp(cmd, "factory_reset"))
@@ -278,7 +282,7 @@ void generateHelloJSON(JsonVariant output, UserRole role)
   output["msg"] = "hello";
   output["role"] = getRoleText(role);
   output["default_role"] = getRoleText(app_default_role);
-  output["theme"] = app_theme;
+  output["name"] = board_name;
   output["brightness"] = globalBrightness;
   output["firmware_version"] = YB_FIRMWARE_VERSION;
 }
@@ -350,11 +354,16 @@ void handleSetNetworkConfig(JsonVariantConst input, JsonVariant output)
   strlcpy(new_wifi_pass, input["wifi_pass"] | "PASS", sizeof(new_wifi_pass));
   strlcpy(local_hostname, input["local_hostname"] | "yarrboard", sizeof(local_hostname));
 
+  YBP.println(new_wifi_mode);
+  YBP.println(new_wifi_ssid);
+  YBP.println(new_wifi_pass);
+
   // make sure we can connect before we save
   if (!strcmp(new_wifi_mode, "client")) {
     // did we change username/password?
     if (strcmp(new_wifi_ssid, wifi_ssid) || strcmp(new_wifi_pass, wifi_pass)) {
       // try connecting.
+      YBP.printf("Trying new wifi %s / %s\n", new_wifi_ssid, new_wifi_pass);
       if (connectToWifi(new_wifi_ssid, new_wifi_pass)) {
         // changing modes?
         if (!strcmp(wifi_mode, "ap"))
@@ -368,27 +377,21 @@ void handleSetNetworkConfig(JsonVariantConst input, JsonVariant output)
         // save it to file.
         if (!saveConfig(error, sizeof(error)))
           return generateErrorJSON(output, error);
-
-        // let the client know.
-        return generateSuccessJSON(output, "Connected to new WiFi.");
       }
       // nope, setup our wifi back to default.
-      else
+      else {
+        connectToWifi(wifi_ssid, wifi_pass); // go back to our old wifi.
+        start_network_services();
         return generateErrorJSON(output, "Can't connect to new WiFi.");
+      }
     } else {
       // save it to file.
       if (!saveConfig(error, sizeof(error)))
         return generateErrorJSON(output, error);
-
-      return generateSuccessJSON(output, "Network settings updated.");
     }
   }
   // okay, AP mode is easier
   else {
-    // changing modes?
-    // if (wifi_mode.equals("client"))
-    //   WiFi.disconnect();
-
     // save for local use.
     strlcpy(wifi_mode, new_wifi_mode, sizeof(wifi_mode));
     strlcpy(wifi_ssid, new_wifi_ssid, sizeof(wifi_ssid));
@@ -404,10 +407,8 @@ void handleSetNetworkConfig(JsonVariantConst input, JsonVariant output)
   }
 }
 
-void handleSetAppConfig(JsonVariantConst input, JsonVariant output)
+void handleSetAuthenticationConfig(JsonVariantConst input, JsonVariant output)
 {
-  bool old_app_enable_ssl = app_enable_ssl;
-
   if (!input["admin_user"].is<String>())
     return generateErrorJSON(output, "'admin_user' is a required parameter");
   if (!input["admin_pass"].is<String>())
@@ -460,25 +461,20 @@ void handleSetAppConfig(JsonVariantConst input, JsonVariant output)
   else
     app_default_role = NOBODY;
 
+  // save it to file.
+  char error[128] = "Unknown";
+  if (!saveConfig(error, sizeof(error)))
+    return generateErrorJSON(output, error);
+}
+
+void handleSetWebServerConfig(JsonVariantConst input, JsonVariant output)
+{
+  bool old_app_enable_ssl = app_enable_ssl;
+
   app_enable_mfd = input["app_enable_mfd"];
   app_enable_api = input["app_enable_api"];
-  app_enable_serial = input["app_enable_serial"];
   app_enable_ota = input["app_enable_ota"];
   app_enable_ssl = input["app_enable_ssl"];
-  app_enable_mqtt = input["app_enable_mqtt"];
-  app_enable_ha_integration = input["app_enable_ha_integration"];
-  app_use_hostname_as_mqtt_uuid = input["app_use_hostname_as_mqtt_uuid"];
-
-  strlcpy(mqtt_server, input["mqtt_server"] | "", sizeof(mqtt_server));
-  strlcpy(mqtt_user, input["mqtt_user"] | "", sizeof(mqtt_user));
-  strlcpy(mqtt_pass, input["mqtt_pass"] | "", sizeof(mqtt_pass));
-  mqtt_cert = input["mqtt_cert"].as<String>();
-
-  if (input["app_update_interval"].is<JsonVariantConst>()) {
-    app_update_interval = input["app_update_interval"] | 500;
-    app_update_interval = max(100, (int)app_update_interval);
-    app_update_interval = min(5000, (int)app_update_interval);
-  }
 
   server_cert = input["server_cert"].as<String>();
   server_key = input["server_key"].as<String>();
@@ -488,19 +484,49 @@ void handleSetAppConfig(JsonVariantConst input, JsonVariant output)
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
 
-  // init our ota.
-  if (app_enable_ota)
-    ota_setup();
+  // restart the board.
+  if (old_app_enable_ssl != app_enable_ssl)
+    ESP.restart();
+}
+
+void handleSetMQTTConfig(JsonVariantConst input, JsonVariant output)
+{
+  app_enable_mqtt = input["app_enable_mqtt"];
+  app_enable_ha_integration = input["app_enable_ha_integration"];
+  app_use_hostname_as_mqtt_uuid = input["app_use_hostname_as_mqtt_uuid"];
+
+  strlcpy(mqtt_server, input["mqtt_server"] | "", sizeof(mqtt_server));
+  strlcpy(mqtt_user, input["mqtt_user"] | "", sizeof(mqtt_user));
+  strlcpy(mqtt_pass, input["mqtt_pass"] | "", sizeof(mqtt_pass));
+  mqtt_cert = input["mqtt_cert"].as<String>();
+
+  // save it to file.
+  char error[128] = "Unknown";
+  if (!saveConfig(error, sizeof(error)))
+    return generateErrorJSON(output, error);
 
   // init our mqtt
   if (app_enable_mqtt)
     mqtt_setup();
   else
     mqtt_disconnect();
+}
 
-  // restart the board.
-  if (old_app_enable_ssl != app_enable_ssl)
-    ESP.restart();
+void handleSetMiscellaneousConfig(JsonVariantConst input, JsonVariant output)
+{
+  app_enable_serial = input["app_enable_serial"];
+  app_enable_ota = input["app_enable_ota"];
+
+  // save it to file.
+  char error[128] = "Unknown";
+  if (!saveConfig(error, sizeof(error)))
+    return generateErrorJSON(output, error);
+
+  // init our ota.
+  if (app_enable_ota)
+    ota_setup();
+  else
+    ota_end();
 }
 
 void handleSaveConfig(JsonVariantConst input, JsonVariant output)
@@ -710,69 +736,20 @@ void handleConfigPWMChannel(JsonVariantConst input, JsonVariant output)
   if (!ch)
     return;
 
-  // channel name
-  if (input["name"].is<String>()) {
-    // is it too long?
-    if (strlen(input["name"]) > YB_CHANNEL_NAME_LENGTH - 1) {
-      sprintf(error, "Maximum channel name length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->name, input["name"] | "Channel ?", sizeof(ch->name));
+  if (!input["config"].is<JsonObjectConst>()) {
+    snprintf(error, sizeof(error), "'config' is required parameter");
+    return generateErrorJSON(output, error);
   }
 
-  // channel type
-  if (input["type"].is<String>()) {
-    // is it too long?
-    if (strlen(input["type"]) > YB_TYPE_LENGTH - 1) {
-      sprintf(error, "Maximum channel type length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->type, input["type"] | "other", sizeof(ch->type));
-  }
-
-  // default state
-  if (input["defaultState"].is<String>()) {
-    // is it too long?
-    if (strlen(input["defaultState"]) >
-        sizeof(ch->defaultState) - 1) {
-      sprintf(error, "Maximum default state length is %s characters.", sizeof(ch->defaultState) - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->defaultState, input["defaultState"] | "OFF", sizeof(ch->defaultState));
-  }
-
-  // dimmability
-  if (input["isDimmable"].is<bool>())
-    ch->isDimmable = input["isDimmable"];
-
-  // enabled
-  if (input["enabled"].is<bool>())
-    ch->isEnabled = input["enabled"];
-
-  // soft fuse
-  if (input["softFuse"].is<float>()) {
-    // i crave validation!
-    float softFuse = input["softFuse"];
-    softFuse = constrain(softFuse, 0.01, 20.0);
-
-    // save right nwo.
-    ch->softFuseAmperage = softFuse;
+  if (!ch->loadConfig(input["config"], error, sizeof(error))) {
+    return generateErrorJSON(output, error);
   }
 
   // write it to file
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
-
-  // give them the updated config
-  generateConfigJSON(output);
 #else
-  return generateErrorJSON(output, "Board does not have output channels.");
+  return generateErrorJSON(output, "Board does not have pwm channels.");
 #endif
 }
 
@@ -820,56 +797,18 @@ void handleConfigRelayChannel(JsonVariantConst input, JsonVariant output)
   if (!ch)
     return;
 
-  // channel name
-  if (input["name"].is<String>()) {
-    // is it too long?
-    if (strlen(input["name"]) > YB_CHANNEL_NAME_LENGTH - 1) {
-      sprintf(error, "Maximum channel name length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->name, input["name"] | "Relay ?", sizeof(ch->name));
+  if (!input["config"].is<JsonObjectConst>()) {
+    snprintf(error, sizeof(error), "'config' is required parameter");
+    return generateErrorJSON(output, error);
   }
 
-  // channel type
-  if (input["type"].is<String>()) {
-    // is it too long?
-    if (strlen(input["type"]) > YB_TYPE_LENGTH - 1) {
-      sprintf(error, "Maximum channel type length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->type, input["type"] | "other", sizeof(ch->type));
-  }
-
-  // default state
-  if (input["defaultState"].is<String>()) {
-    // is it too long?
-    if (strlen(input["defaultState"]) >
-        sizeof(ch->defaultState) - 1) {
-      sprintf(error, "Maximum default state length is %s characters.", sizeof(ch->defaultState) - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->defaultState, input["defaultState"] | "OFF", sizeof(ch->defaultState));
-  }
-
-  // enabled
-  if (input["enabled"].is<bool>()) {
-    // save right nwo.
-    bool enabled = input["enabled"];
-    ch->isEnabled = enabled;
+  if (!ch->loadConfig(input["config"], error, sizeof(error))) {
+    return generateErrorJSON(output, error);
   }
 
   // write it to file
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
-
-  // give them the updated config
-  generateConfigJSON(output);
 #else
   return generateErrorJSON(output, "Board does not have relay channels.");
 #endif
@@ -963,32 +902,18 @@ void handleConfigServoChannel(JsonVariantConst input, JsonVariant output)
   if (!ch)
     return;
 
-  // channel name
-  if (input["name"].is<String>()) {
-    // is it too long?
-    if (strlen(input["name"]) > YB_CHANNEL_NAME_LENGTH - 1) {
-      sprintf(error, "Maximum channel name length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->name, input["name"] | "Servo ?", sizeof(ch->name));
+  if (!input["config"].is<JsonObjectConst>()) {
+    snprintf(error, sizeof(error), "'config' is required parameter");
+    return generateErrorJSON(output, error);
   }
 
-  // enabled
-  if (input["enabled"].is<bool>()) {
-    // save right nwo.
-    bool enabled = input["enabled"];
-    ch->isEnabled = enabled;
+  if (!ch->loadConfig(input["config"], error, sizeof(error))) {
+    return generateErrorJSON(output, error);
   }
 
   // write it to file
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
-
-  // give them the updated config
-  generateConfigJSON(output);
-
 #else
   return generateErrorJSON(output, "Board does not have servo channels.");
 #endif
@@ -1006,23 +931,15 @@ void handleSetServoChannel(JsonVariantConst input, JsonVariant output)
   if (!ch->isEnabled)
     return generateErrorJSON(output, "Channel is not enabled.");
 
-  if (input["usec"].is<JsonVariantConst>()) {
-    float usec = input["usec"];
-
-    if (usec >= 500 && usec <= 2500)
-      ch->write(usec);
-    else
-      return generateErrorJSON(output, "'usec' must be between 500 and 2500");
-  } else if (input["angle"].is<JsonVariantConst>()) {
+  if (input["angle"].is<JsonVariantConst>()) {
     float angle = input["angle"];
 
     if (angle >= 0 && angle <= 180)
       ch->write(angle);
     else
       return generateErrorJSON(output, "'angle' must be between 0 and 180");
-
   } else
-    return generateErrorJSON(output, "'usec' or 'angle' parameter is required.");
+    return generateErrorJSON(output, "'angle' parameter is required.");
 #else
   return generateErrorJSON(output, "Board does not have servo channels.");
 #endif
@@ -1038,32 +955,17 @@ void handleConfigStepperChannel(JsonVariantConst input, JsonVariant output)
   if (!ch)
     return;
 
-  // channel name
-  if (input["name"].is<String>()) {
-    // is it too long?
-    if (strlen(input["name"]) > YB_CHANNEL_NAME_LENGTH - 1) {
-      sprintf(error, "Maximum channel name length is %s characters.", YB_CHANNEL_NAME_LENGTH - 1);
-      return generateErrorJSON(output, error);
-    }
-
-    // save to our storage
-    strlcpy(ch->name, input["name"] | "Stepper ?", sizeof(ch->name));
+  if (!input["config"].is<JsonObjectConst>()) {
+    snprintf(error, sizeof(error), "'config' is required parameter");
+    return generateErrorJSON(output, error);
   }
 
-  // enabled
-  if (input["enabled"].is<bool>()) {
-    // save right nwo.
-    bool enabled = input["enabled"];
-    ch->isEnabled = enabled;
-  }
+  if (!ch->loadConfig(input["config"], error, sizeof(error)))
+    return generateErrorJSON(output, error);
 
   // write it to file
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
-
-  // give them the updated config
-  generateConfigJSON(output);
-
 #else
   return generateErrorJSON(output, "Board does not have stepper channels.");
 #endif
@@ -1097,10 +999,7 @@ void handleSetStepperChannel(JsonVariantConst input, JsonVariant output)
   // move to an angle
   if (input["angle"].is<JsonVariantConst>()) {
     float angle = input["angle"];
-    if (angle >= 0)
-      ch->gotoAngle(angle);
-    else
-      return generateErrorJSON(output, "'angle' must be greater than 0");
+    ch->gotoAngle(angle);
   }
 #else
   return generateErrorJSON(output, "Board does not have stepper channels.");
@@ -1222,10 +1121,6 @@ void handleConfigADC(JsonVariantConst input, JsonVariant output)
   // write it to file
   if (!saveConfig(error, sizeof(error)))
     return generateErrorJSON(output, error);
-
-  // give them the updated config
-  generateConfigJSON(output);
-
 #else
   return generateErrorJSON(output, "Board does not have ADC channels.");
 #endif
@@ -1418,9 +1313,7 @@ void generateConfigJSON(JsonVariant output)
 
   generateBoardConfigJSON(output);
 
-#ifdef YB_IS_DEVELOPMENT
-  output["is_development"] = true;
-#endif
+  output["is_development"] = YB_IS_DEVELOPMENT;
 
   // some debug info
   output["last_restart_reason"] = getResetReason();

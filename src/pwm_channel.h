@@ -14,6 +14,8 @@
 #include "bus_voltage.h"
 #include "config.h"
 #include "driver/ledc.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
 #include "mqtt.h"
 #include "networking.h"
 #include "prefs.h"
@@ -43,6 +45,7 @@ class PWMChannel : public BaseChannel
         void (*user_cb)(void*) = nullptr;
         void* user_arg = nullptr;
         bool active = false;
+        PWMChannel* owner;
     } gamma;
 
     // Gamma aware led fading: same signature as ledcFadeWithInterruptArg
@@ -79,7 +82,7 @@ class PWMChannel : public BaseChannel
     volatile bool isFading = false; // used to check if we're actively fading
     volatile bool fadeOver = false; // used for running code after a fade
 
-    bool isInverted = false; // determines whether our output pin is inverted or not
+    // bool isInverted = false; // determines whether our output pin is inverted or not
 
     float dutyCycle = 0.0;
     float lastDutyCycle = 0.0;
@@ -137,6 +140,8 @@ class PWMChannel : public BaseChannel
     float toAmperage(float voltage);
     void checkSoftFuse();
 
+    float getWattage();
+
     void checkIfFadeOver();
     void setState(const char* state);
     void setState(bool newState);
@@ -165,28 +170,8 @@ class PWMChannel : public BaseChannel
     }
 
     // ISR (Arduino style)
-    static void ARDUINO_ISR_ATTR gammaISR(void* arg)
-    {
-      auto* S = static_cast<GammaState*>(arg);
-      if (!S || !S->active)
-        return;
-
-      constexpr uint8_t SEGMENTS = 16;
-
-      if (S->idx + 1 < SEGMENTS) {
-        const uint32_t from = S->targets[S->idx];
-        const uint32_t to = S->targets[S->idx + 1];
-        const bool lastSeg = (S->idx + 1 == SEGMENTS - 1);
-        const int dur_ms = lastSeg ? S->last_ms : S->step_ms;
-        S->idx++;
-        ledcFadeWithInterruptArg(S->pin, from, to, dur_ms, &PWMChannel::gammaISR, S);
-      } else {
-        // done → call user’s final ISR
-        S->active = false;
-        if (S->user_cb)
-          S->user_cb(S->user_arg);
-      }
-    }
+    static void ARDUINO_ISR_ATTR gammaISR(void* arg);
+    static void continueGammaThunk(void* arg, uint32_t);
 };
 
 extern etl::array<PWMChannel, YB_PWM_CHANNEL_COUNT> pwm_channels;
